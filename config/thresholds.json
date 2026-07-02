@@ -1,0 +1,30 @@
+{
+  "default": {
+    "min_liquidity": 100.0,
+    "min_volume_5m": 600.0,
+    "min_tx_count_1m": 60.0,
+    "max_top10_holder_percent": 30.0,
+    "max_dev_holding_percent": 5.0,
+    "max_insider_or_rat_percent": 20.0,
+    "alert_score": 80,
+    "watch_score": 55
+  },
+  "chains": {
+    "base": {
+      "min_liquidity": 50.0,
+      "min_volume_5m": 250.0,
+      "min_tx_count_1m": 20.0
+    },
+    "bsc": {
+      "min_liquidity": 40.0,
+      "min_volume_5m": 200.0,
+      "min_tx_count_1m": 15.0
+    },
+    "solana": {
+      "min_liquidity": 100.0,
+      "min_volume_5m": 600.0,
+      "min_tx_count_1m": 60.0
+    }
+  }
+}
+

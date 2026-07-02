@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0.0",
+  "pairs": [
+    {
+      "chainId": "solana",
+      "pairAddress": "Pair111111111111111111111111111111111111111",
+      "baseToken": {
+        "address": "Dex1111111111111111111111111111111111111111",
+        "symbol": "DEX"
+      },
+      "fdv": 65000,
+      "liquidity": {
+        "usd": 12000
+      },
+      "volume": {
+        "m5": 2500
+      },
+      "txns": {
+        "m5": {
+          "buys": 42,
+          "sells": 18
+        }
+      }
+    }
+  ]
+}
+

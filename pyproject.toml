@@ -1,0 +1,32 @@
+[project]
+name = "gmgn-monitor"
+version = "0.1.0"
+description = "GMGN sweep-chain intelligence system — monitor-only Phase 1-5 implementation."
+requires-python = ">=3.10"
+license = {text = "MIT"}
+readme = "README.md"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.5.0",
+    "mypy>=1.0",
+]
+
+[tool.ruff]
+line-length = 120
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gmgn_monitor"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

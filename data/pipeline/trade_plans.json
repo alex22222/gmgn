@@ -1,0 +1,64 @@
+[
+  {
+    "chain": "solana",
+    "decision": "alert",
+    "exit_plan": {
+      "stop_loss_percent": -40.0,
+      "take_profit_steps": [
+        {
+          "price_change_percent": 100.0,
+          "sell_percent": 50.0
+        },
+        {
+          "price_change_percent": 300.0,
+          "sell_percent": 50.0
+        }
+      ]
+    },
+    "invalidation_rule": "Do not enter if any safety flag changes, liquidity drops sharply, or concentration exceeds configured thresholds.",
+    "manual_checklist": [
+      "Confirm token address matches the reviewed candidate.",
+      "Confirm safety fields are still valid.",
+      "Confirm daily loss limit has not been reached.",
+      "Confirm position size is within max_position_percent.",
+      "Confirm stop loss and take-profit plan before any manual action."
+    ],
+    "max_position_percent": 2.0,
+    "reason": "liquidity meets minimum; 5m volume meets minimum; 1m transaction count meets minimum; holder count is broad enough",
+    "score": 100,
+    "status": "needs_human_confirmation",
+    "symbol": "GOOD",
+    "token_address": "Good111111111111111111111111111111111111111"
+  },
+  {
+    "chain": "solana",
+    "decision": "watch",
+    "exit_plan": {
+      "stop_loss_percent": -40.0,
+      "take_profit_steps": [
+        {
+          "price_change_percent": 100.0,
+          "sell_percent": 50.0
+        },
+        {
+          "price_change_percent": 300.0,
+          "sell_percent": 50.0
+        }
+      ]
+    },
+    "invalidation_rule": "Do not enter if any safety flag changes, liquidity drops sharply, or concentration exceeds configured thresholds.",
+    "manual_checklist": [
+      "Confirm token address matches the reviewed candidate.",
+      "Confirm safety fields are still valid.",
+      "Confirm daily loss limit has not been reached.",
+      "Confirm position size is within max_position_percent.",
+      "Confirm stop loss and take-profit plan before any manual action."
+    ],
+    "max_position_percent": 2.0,
+    "reason": "liquidity meets minimum; 5m volume meets minimum; 1m transaction count meets minimum; holder count is broad enough",
+    "score": 60,
+    "status": "needs_human_confirmation",
+    "symbol": "WATCH",
+    "token_address": "Watch11111111111111111111111111111111111111"
+  }
+]

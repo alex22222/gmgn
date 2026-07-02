@@ -1,0 +1,23 @@
+[ALERT] GOOD on solana
+Score: 100
+Token: Good111111111111111111111111111111111111111
+Market cap: 69000.0
+Liquidity: 140.0
+Reasons:
+- liquidity meets minimum
+- 5m volume meets minimum
+- 1m transaction count meets minimum
+- holder count is broad enough
+
+---
+
+[WATCH] WATCH on solana
+Score: 60
+Token: Watch11111111111111111111111111111111111111
+Market cap: 42000.0
+Liquidity: 115.0
+Reasons:
+- liquidity meets minimum
+- 5m volume meets minimum
+- 1m transaction count meets minimum
+- holder count is broad enough

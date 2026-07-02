@@ -1,0 +1,236 @@
+# GMGN System Loop State
+
+## Goal
+
+Build the GMGN sweep-chain intelligence system in phases, with monitor-only Phase 1 as the first verified milestone and the full system as the final objective.
+
+## Current Iteration
+
+- Mode: Loop Engineering
+- Phase: Phase 1, monitor only
+- Status: Goal implementation complete; automation remains blocked by safety gate
+
+## Done
+
+- [x] Defined final system goal in `gmgn_system_spec.md`.
+- [x] Defined phased build plan from monitoring to limited automation.
+- [x] Set Phase 1 as monitor-only with no trading execution.
+- [x] Listed Phase 1 candidate record fields.
+- [x] Defined Phase 1 acceptance criteria.
+- [x] Added initial conservative risk rules.
+- [x] Added verification requirements for future iterations.
+- [x] Created Python standard-library Phase 1 skeleton in `gmgn_monitor/`.
+- [x] Added fixture candidate events in `fixtures/candidates.jsonl`.
+- [x] Implemented candidate schema validation.
+- [x] Implemented conservative scoring and reject/watch/alert decisions.
+- [x] Implemented dry-run replay command.
+- [x] Added unit tests for alert, watch, reject, and schema failure.
+- [x] Verified replay writes structured JSONL records to `data/candidate_events.jsonl`.
+- [x] Verified no Phase 1 trading, signing, or private-key code was added.
+- [x] Added configurable thresholds in `config/thresholds.json`.
+- [x] Added chain-specific threshold overrides for Solana, Base, and BSC.
+- [x] Updated replay command to load configured thresholds.
+- [x] Added tests for default config, chain overrides, invalid config, and configured scoring behavior.
+- [x] Added read-only source adapter protocol in `gmgn_monitor/sources.py`.
+- [x] Moved JSONL fixture loading behind `JsonlCandidateSource`.
+- [x] Updated replay to consume source adapters without changing dry-run behavior.
+- [x] Added source adapter tests for JSONL loading and malformed fixture errors.
+- [x] Added markdown daily summary generation from JSONL event records.
+- [x] Added report tests for decision counts and top alert/watch candidates.
+- [x] Generated `data/daily_summary.md` from fixture replay output.
+- [x] Added Telegram-ready dry-run formatter without network sending.
+- [x] Added tests for alert formatting, watch formatting, reject suppression, and message filtering.
+- [x] Generated `data/telegram_dry_run.txt` from scored event records.
+- [x] Verified no Telegram token, network send, signing, private-key, or trading code was added.
+- [x] Added empty outcome tracking fields to scored event output.
+- [x] Kept outcome fields separate from scoring inputs.
+- [x] Added tests proving empty outcomes do not affect decisions.
+- [x] Updated daily summary with reviewed vs pending outcome counts.
+- [x] Added Base and BSC chain-specific threshold fixtures.
+- [x] Added malformed JSON and missing-field fixtures for failure-path coverage.
+- [x] Added replay tests proving chain-specific fixtures pass configured thresholds.
+- [x] Added replay tests proving malformed and missing-field fixtures fail before alerting.
+- [x] Added `OPERATIONS.md` with tested run commands and safety boundary.
+- [x] Documented generated outputs, fixture schema, threshold config, and outcome review fields.
+- [x] Verified all documented commands run successfully.
+- [x] Added DEX Screener read-only source adapter prototype.
+- [x] Added local DEX Screener sample payload and adapter tests.
+- [x] Added CLI path for live fetch and offline sample-payload conversion.
+- [x] Verified DEX Screener mapped candidates are schema-valid but conservatively rejected until safety enrichment exists.
+- [x] Live DEX Screener fetch currently fails on this machine due Python TLS certificate verification; TLS bypass was not added.
+- [x] Added `SCHEMA.md` with candidate input, scored output, and outcome schemas.
+- [x] Documented unsafe defaults for incomplete source adapters.
+- [x] Linked schema documentation from `OPERATIONS.md`.
+- [x] Added `PHASE1_AUDIT.md` with requirement-by-requirement completion evidence.
+- [x] Added `SAFETY_ENRICHMENT.md` before allowing live candidates to alert.
+- [x] Documented safety fields missing from market-only sources such as DEX Screener.
+- [x] Documented fallback behavior that keeps incomplete live data rejected.
+- [x] Added deterministic large-sample generator in `gmgn_monitor/sample_data.py`.
+- [x] Generated 200 candidate fixtures in `fixtures/large_sample_candidates.jsonl`.
+- [x] Replayed 200 candidates into `data/large_sample_events.jsonl`.
+- [x] Generated `data/large_sample_summary.md` with decision distribution and pending outcome counts.
+- [x] Added tests for sample generation, large-sample report behavior, and summary-only replay output.
+- [x] Added separate outcome review application workflow in `gmgn_monitor/outcomes.py`.
+- [x] Added `fixtures/outcome_reviews.jsonl` review fixture.
+- [x] Generated `data/reviewed_candidate_events.jsonl` and `data/reviewed_daily_summary.md`.
+- [x] Added tests proving outcome reviews do not change score or decision.
+- [x] Added score distribution and reviewed outcome analysis in `gmgn_monitor/analysis.py`.
+- [x] Generated `data/outcome_analysis.md`.
+- [x] Added tests for score bucket and reviewed outcome aggregation.
+- [x] Added configurable report title for daily and weekly summary generation.
+- [x] Generated `data/weekly_summary.md` from 200-candidate large sample.
+- [x] Added `PHASE2_AUDIT.md` with requirement-by-requirement completion evidence.
+- [x] Added `config/risk_limits.json`.
+- [x] Added human-confirmed trade plan generation in `gmgn_monitor/trade_plan.py`.
+- [x] Generated `data/trade_plans.json` and `data/trade_plans_blocked.json`.
+- [x] Added tests for plan contents, reject suppression, and daily loss blocking.
+- [x] Added `PHASE3_AUDIT.md` with requirement-by-requirement completion evidence.
+- [x] Added execution venue config in `config/execution_venues.json`.
+- [x] Added execution-layer evaluation report generator in `gmgn_monitor/execution_eval.py`.
+- [x] Generated `data/execution_evaluation.md`.
+- [x] Added tests for venue ranking and evaluation-only report language.
+- [x] Added `PHASE4_AUDIT.md` with requirement-by-requirement completion evidence.
+- [x] Added Phase 5 automation gate in `gmgn_monitor/automation_gate.py`.
+- [x] Generated `data/automation_gate.md` with blocked status.
+- [x] Added tests for missing evidence, forbidden strategy shapes, and no-execution report language.
+- [x] Added `PHASE5_AUDIT.md`.
+- [x] Added `GOAL_AUDIT.md`.
+- [x] Added unified dry-run pipeline in `gmgn_monitor/pipeline.py`.
+- [x] Added pipeline tests and `OPERATIONS.md` usage.
+- [x] Generated `data/pipeline/*` outputs from replay, review, summaries, dry-run alert text, trade plans, and automation gate.
+- [x] Fixed pipeline summary to reflect reviewed outcome status when review input is provided.
+- [x] Added local health-check command in `gmgn_monitor/doctor.py`.
+- [x] Added doctor tests and `OPERATIONS.md` usage.
+- [x] Verified doctor checks required files, config loading, fixture schema, generated pipeline outputs, and safety keywords.
+- [x] Verified `python3 -m gmgn_monitor.doctor` returns OK after pipeline generation.
+- [x] Enhanced doctor to check generated output content, require blocked automation gate output, and emit JSON for automation.
+- [x] Added one-command local verification in `gmgn_monitor/verify.py`.
+- [x] Added verification report tests and `OPERATIONS.md` usage.
+- [x] Added persistent verification report output with `python3 -m gmgn_monitor.verify --report data/verification_report.json`.
+- [x] Hardened verification report loading with explicit diagnostics for malformed or non-object reports.
+- [x] Added config fingerprints to verification reports for threshold, risk, automation-gate, and venue configs.
+- [x] Added generated pipeline artifact fingerprints to verification reports.
+- [x] Added operational summary to verification reports with candidate count, decision counts, outcome review counts, and automation gate status.
+- [x] Added `config/verification_expectations.json` and a verification expectations step to detect fixture baseline drift.
+- [x] Added shared verification expectation validation in `gmgn_monitor/verification_expectations.py`.
+- [x] Added doctor validation for malformed verification expectation config.
+- [x] Added optional JSONL verification history output with `python3 -m gmgn_monitor.verify --history data/verification_history.jsonl`.
+- [x] Added read-only verification history summary command in `gmgn_monitor/history.py`.
+- [x] Hardened verification history JSONL loading with line-number diagnostics for malformed or non-object records.
+- [x] Added status-count and per-step failure-count trend fields to verification history summary.
+- [x] Added optional doctor parse checks for `data/verification_report.json` and `data/verification_history.jsonl`.
+- [x] Expanded doctor generated-output checks to include all pipeline artifacts and JSONL/JSON parseability.
+- [x] Added shared fingerprint helpers and doctor checks for stale verification report config/artifact fingerprints.
+- [x] Added non-destructive `--limit` support for recent-window verification history summaries.
+- [x] Added explicit `--fail-on-any-failure` monitoring mode for verification history summaries.
+- [x] Added read-only local status command in `gmgn_monitor/status.py`.
+- [x] Added report age calculation and optional `--max-report-age-minutes` freshness check to status command.
+- [x] Added `--history-limit` and `--fail-on-any-history-failure` monitoring options to status command.
+- [x] Added consecutive failure count and last successful verification time to history summaries.
+- [x] Added status report/history consistency check and `--require-history-current` monitoring option.
+- [x] Added `--require-report` status option so strict monitoring fails without an ok timestamped verification report.
+- [x] Tightened `--require-report` so strict status also requires the complete ok verification step set.
+- [x] Tightened status report-time checks so strict monitoring rejects future-dated verification reports.
+- [x] Added history incomplete-step tracking and strict history step checks for monitoring windows.
+- [x] Added history timestamp integrity tracking and strict valid-timeline checks for monitoring windows.
+- [x] Tightened history timestamp integrity so doctor/status/history reject future-dated history records.
+- [x] Added doctor checks for verification history step completeness and timestamp integrity.
+- [x] Added doctor checks for verification report timestamp validity and complete verification steps.
+- [x] Added doctor/history/status checks for verification report and history status-step consistency.
+- [x] Added doctor checks for verification report operational summary presence and expectation drift.
+- [x] Added doctor checks for verification history operational summary expectation drift.
+- [x] Added atomic write helpers and routed pipeline artifacts through temp-file replace writes.
+- [x] Hardened verification report writes with atomic replace and verification history appends with flush/fsync.
+- [x] Added a local verification lock to fail fast on overlapping full verification runs.
+- [x] Added verification lock observability to doctor/status, including stale-lock failure checks.
+- [x] Added atomic-write temp artifact observability to doctor/status, including stale-temp failure checks.
+- [x] Tightened doctor checks so verification reports must include complete current config/artifact fingerprints.
+- [x] Tightened status report/history current checks to compare steps and operational summary in addition to status and fingerprints.
+- [x] Tightened doctor checks so verification reports must match the latest verification history record when both artifacts exist.
+- [x] Hardened `verify --json` so active verification lock conflicts return machine-readable failure JSON.
+- [x] Tightened doctor generated-event checks from JSONL parseability to scored event schema sanity.
+- [x] Tightened numeric validation so JSON booleans are rejected for candidate numeric fields and generated scores.
+- [x] Tightened candidate numeric validation so values must be non-negative and percentage fields cannot exceed 100.
+- [x] Tightened candidate string validation so required string fields must be non-empty after trimming whitespace.
+- [x] Tightened candidate timestamp validation so `detected_at` must parse as an ISO timestamp.
+- [x] Tightened candidate numeric validation so non-finite values such as `NaN` and infinity are rejected.
+- [x] Tightened candidate count validation so transaction and holder counts must be whole-number values.
+- [x] Tightened JSONL source loading so non-empty candidate records must be JSON objects with line-number diagnostics.
+- [x] Tightened outcome review loading so review token addresses, reviewed flags, and reviewed timestamps are validated.
+- [x] Tightened outcome review loading so price/drawdown fields must be finite numbers or null and notes must be strings.
+- [x] Tightened outcome review loading so duplicate token reviews fail instead of silently overwriting earlier records.
+- [x] Tightened DEX Screener adapter numeric normalization so dirty numeric/count values map to conservative schema-valid defaults.
+- [x] Tightened threshold config loading so malformed sections, invalid numeric values, percentage overflows, and inverted alert/watch scores fail fast.
+- [x] Tightened risk limit config loading so malformed sections, invalid numeric values, unsafe stop-loss direction, and invalid take-profit allocations fail fast.
+- [x] Added a local dashboard with automatic port selection, fixed safe command actions, and generated output viewing.
+- [x] Added a dashboard user workflow guide showing the recommended operating sequence from health check through manual review.
+- [x] Localized the dashboard interface, action labels, output labels, status badges, and user workflow guide into Chinese.
+- [x] Added a dashboard data-source status section covering active fixtures, DEX Screener read-only limits, and planned safety-enrichment sources.
+- [x] Added dashboard data-source health diagnostics for file existence and JSONL record counts.
+- [x] Tightened dashboard data-source health diagnostics so JSONL sources must parse as line-delimited objects before being reported as available.
+- [x] Hardened dashboard action execution so command timeouts return structured failure JSON instead of breaking the request.
+- [x] Added a dashboard action execution lock so overlapping button-triggered commands return structured busy failures instead of running concurrently.
+- [x] Hardened DEX Screener payload loading so malformed payloads, non-list pairs, and non-object pairs fail with explicit diagnostics.
+- [x] Hardened DEX Screener sources so `limit` must be a positive integer instead of relying on Python slicing behavior.
+- [x] Hardened DEX Screener CLI so invalid payloads and invalid limits return explicit nonzero diagnostics without traceback output.
+- [x] Hardened DEX Screener live search so empty queries fail before any network request is attempted.
+- [x] Hardened DEX Screener CLI so missing payload files return explicit nonzero diagnostics without traceback output.
+- [x] Hardened DEX Screener payload JSON parsing so malformed JSON reports the payload path and line number.
+- [x] Hardened DEX Screener live response parsing so malformed JSON reports response-specific diagnostics.
+- [x] Routed DEX Screener JSONL output through the shared atomic writer so failed writes do not leave partial artifacts.
+- [x] Hardened DEX Screener CLI so output write failures return explicit nonzero diagnostics without traceback output.
+- [x] Hardened DEX Screener payload and live response decoding so invalid UTF-8 returns explicit diagnostics without traceback output.
+- [x] Hardened DEX Screener live search so non-empty queries are trimmed before request URLs are built.
+- [x] Hardened DEX Screener CLI so saved payload replay no longer requires an unused live query argument.
+- [x] Hardened DEX Screener pair mapping so non-object nested fields fall back to conservative schema-valid defaults.
+- [x] Hardened DEX Screener pair mapping so non-string or blank identifier fields fall back to schema-valid defaults.
+- [x] Hardened dashboard DEX Screener data-source health so JSON payloads validate object/pairs structure instead of only file existence.
+- [x] Hardened dashboard JSONL data-source health so invalid UTF-8 reports a health error instead of breaking the dashboard payload.
+- [x] Hardened JSONL candidate source loading so invalid UTF-8 reports a path-specific validation error instead of leaking a raw decoder exception.
+- [x] Hardened verification history loading so invalid UTF-8 reports a status-friendly validation error instead of a raw decoder exception.
+- [x] Hardened doctor generated JSONL checks so invalid UTF-8 is reported as a doctor failure instead of interrupting self-checks.
+- [x] Hardened verification report loading so invalid UTF-8 reports a status-friendly validation error instead of a raw decoder exception.
+- [x] Hardened risk limit config loading so invalid UTF-8 and malformed JSON report path-specific validation errors.
+- [x] Hardened threshold config loading so invalid UTF-8 and malformed JSON report path-specific validation errors.
+- [x] Hardened automation gate config loading so invalid UTF-8 and malformed JSON report path-specific validation errors.
+- [x] Hardened verification expectations config loading so invalid UTF-8 and malformed JSON report path-specific validation errors.
+- [x] Hardened execution venue config loading so invalid UTF-8, malformed JSON, and missing required fields report validation errors before report generation.
+- [x] Hardened verification operational summary loading so invalid generated event JSONL reports path-specific validation errors.
+- [x] Hardened verification operational summary gate-status loading so invalid automation gate output UTF-8 reports a path-specific validation error.
+- [x] Hardened doctor trade-plan JSON checks so invalid UTF-8 and malformed JSON report stable doctor failures.
+- [x] Hardened doctor required generated-output content checks so invalid UTF-8 is reported instead of ignored.
+- [x] Hardened dashboard generated-output reading so invalid UTF-8 reports a per-output read error instead of breaking `/api/status`.
+- [x] Hardened dashboard output rendering so per-output read errors are shown in the output panel instead of appearing as missing output.
+- [x] Hardened dashboard verification-report summary rendering so malformed or unreadable reports show a visible warning instead of silent unknown metrics.
+- [x] Hardened dashboard action execution so command output decode failures return structured failure JSON instead of breaking the action API.
+- [x] Hardened dashboard action execution so command startup failures return structured failure JSON instead of breaking the action API.
+- [x] Hardened dashboard unknown-action handling so API errors return the same structured action result shape used by the frontend.
+- [x] Hardened dashboard startup failures so port or server-start errors return a concise CLI error instead of a traceback.
+- [x] Hardened dashboard and doctor file-read diagnostics so filesystem read errors become visible health failures instead of breaking `/api/status`.
+- [x] Hardened doctor generated JSONL and trade-plan reads so filesystem read errors are reported as doctor failures instead of tracebacks.
+- [x] Hardened status report and verification-history reads so filesystem read errors are reported as status failures instead of tracebacks.
+- [x] Hardened verification operational summary reads so generated event and automation-gate filesystem errors report path-specific validation failures.
+- [x] Hardened verification fingerprint generation so config and artifact filesystem read errors report path-specific validation failures.
+- [x] Hardened source adapters so JSONL candidate and DEX Screener payload filesystem read errors report path-specific input failures.
+- [x] Hardened threshold and automation-gate config reads so filesystem errors report path-specific config failures.
+- [x] Hardened risk-limit, verification-expectation, and execution-venue config reads so filesystem errors report path-specific config failures.
+- [x] Hardened verification main so expected validation and filesystem errors return structured command failures instead of tracebacks.
+- [x] Hardened Telegram dry-run generation so input and output filesystem errors return concise CLI failures and writes are atomic.
+- [x] Hardened automation-gate CLI so input and output filesystem errors return concise failures and writes are atomic.
+- [x] Hardened report CLI so invalid event input and output filesystem errors return concise failures and file writes are atomic.
+- [x] Hardened analysis CLI so invalid event input and output filesystem errors return concise failures and file writes are atomic.
+- [x] Hardened execution-evaluation CLI so invalid venue input and output filesystem errors return concise failures and file writes are atomic.
+
+## Open
+
+- None.
+
+## Blocked
+
+- None.
+
+## Next Iteration Recommendation
+
+1. Maintain monitor-only and safety-gated operation.
+2. Do not enable automation until real reviewed evidence and security review exist.
+3. Continue small operational hardening passes, prioritizing source input validation and operator-facing diagnostics.

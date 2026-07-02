@@ -1,0 +1,39 @@
+[
+  {
+    "name": "GMGN",
+    "role": "data_and_execution",
+    "estimated_fee_percent": 1.0,
+    "latency_tier": "seconds",
+    "custody_risk": "external_execution_surface",
+    "reliability_status": "needs_live_measurement",
+    "notes": "Useful as data discovery layer; execution cost and latency should be measured before use."
+  },
+  {
+    "name": "Axiom",
+    "role": "execution_terminal",
+    "estimated_fee_percent": 0.95,
+    "latency_tier": "sub_second_claimed",
+    "custody_risk": "external_execution_surface",
+    "reliability_status": "needs_live_measurement",
+    "notes": "Candidate execution venue; requires measured fill quality and failure-rate tracking."
+  },
+  {
+    "name": "Trojan",
+    "role": "execution_bot",
+    "estimated_fee_percent": 1.0,
+    "latency_tier": "sub_two_second_claimed",
+    "custody_risk": "bot_wallet_surface",
+    "reliability_status": "needs_live_measurement",
+    "notes": "Candidate execution venue; requires custody and wallet-separation review."
+  },
+  {
+    "name": "DirectRouting",
+    "role": "custom_execution",
+    "estimated_fee_percent": 0.0,
+    "latency_tier": "unknown_until_built",
+    "custody_risk": "self_custody_engineering_risk",
+    "reliability_status": "not_implemented",
+    "notes": "Not available yet; would require a separate security review before any signing code."
+  }
+]
+

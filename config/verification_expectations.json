@@ -1,0 +1,13 @@
+{
+  "automation_gate_status": "blocked",
+  "candidate_count": 4,
+  "decisions": {
+    "alert": 1,
+    "reject": 2,
+    "watch": 1
+  },
+  "outcomes": {
+    "pending": 2,
+    "reviewed": 2
+  }
+}

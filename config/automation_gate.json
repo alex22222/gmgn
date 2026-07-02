@@ -1,0 +1,14 @@
+{
+  "positive_expectancy_after_costs": false,
+  "reviewed_candidate_count": 2,
+  "minimum_reviewed_candidate_count": 200,
+  "paper_or_shadow_results_available": false,
+  "kill_switch_configured": false,
+  "mandatory_logs_configured": true,
+  "hard_daily_loss_limit_configured": true,
+  "security_review_completed": false,
+  "allows_martingale": false,
+  "allows_dca_into_losers": false,
+  "allows_unlimited_retries": false
+}
+
