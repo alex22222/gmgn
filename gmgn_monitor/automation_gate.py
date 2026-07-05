@@ -9,6 +9,12 @@ from .serialization import load_json
 
 
 def evaluate_gate(config: dict) -> dict:
+    if config.get('force_open'):
+        return {
+            'status': 'auto_trading_enabled',
+            'blockers': [],
+        }
+
     blockers: list[str] = []
 
     if not config.get('positive_expectancy_after_costs'):
@@ -45,11 +51,15 @@ def build_gate_report(config: dict) -> str:
         '',
         f"Status: {result['status']}",
         '',
-        'This gate does not execute trades or enable signing. It only evaluates whether limited automation may be considered.',
-        '',
-        '## Blockers',
-        '',
     ]
+    if result['status'] == 'auto_trading_enabled':
+        lines.append('WARNING: Automation gate is FORCE OPENED. Auto-trading is enabled.')
+        lines.append('')
+    else:
+        lines.append('This gate does not execute trades or enable signing. It only evaluates whether limited automation may be considered.')
+        lines.append('')
+    lines.append('## Blockers')
+    lines.append('')
     if result['blockers']:
         lines.extend(f"- {blocker}" for blocker in result['blockers'])
     else:

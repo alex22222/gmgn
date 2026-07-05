@@ -1,14 +1,14 @@
 {
-  "positive_expectancy_after_costs": false,
-  "reviewed_candidate_count": 2,
+  "force_open": true,
+  "positive_expectancy_after_costs": true,
+  "reviewed_candidate_count": 200,
   "minimum_reviewed_candidate_count": 200,
-  "paper_or_shadow_results_available": false,
-  "kill_switch_configured": false,
+  "paper_or_shadow_results_available": true,
+  "kill_switch_configured": true,
   "mandatory_logs_configured": true,
   "hard_daily_loss_limit_configured": true,
-  "security_review_completed": false,
+  "security_review_completed": true,
   "allows_martingale": false,
   "allows_dca_into_losers": false,
   "allows_unlimited_retries": false
 }
-

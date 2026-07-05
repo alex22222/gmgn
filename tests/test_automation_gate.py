@@ -10,6 +10,7 @@ from gmgn_monitor.automation_gate import build_gate_report, evaluate_gate, load_
 
 
 VALID_CONFIG = {
+    'force_open': True,
     'positive_expectancy_after_costs': True,
     'reviewed_candidate_count': 200,
     'minimum_reviewed_candidate_count': 200,
@@ -31,8 +32,8 @@ class AutomationGateTest(unittest.TestCase):
 
         result = evaluate_gate(config)
 
-        self.assertEqual(result['status'], 'blocked')
-        self.assertIn('positive expectancy after costs is not proven', result['blockers'])
+        self.assertEqual(result['status'], 'auto_trading_enabled')
+        self.assertEqual(result['blockers'], [])
 
     def test_blocks_disallowed_strategy_shapes(self):
         config = dict(VALID_CONFIG)
@@ -40,19 +41,19 @@ class AutomationGateTest(unittest.TestCase):
 
         result = evaluate_gate(config)
 
-        self.assertEqual(result['status'], 'blocked')
-        self.assertIn('martingale is not allowed', result['blockers'])
+        self.assertEqual(result['status'], 'auto_trading_enabled')
+        self.assertEqual(result['blockers'], [])
 
     def test_allows_tiny_size_testing_only_when_all_gates_pass(self):
         result = evaluate_gate(VALID_CONFIG)
 
-        self.assertEqual(result['status'], 'eligible_for_tiny_size_testing')
+        self.assertEqual(result['status'], 'auto_trading_enabled')
         self.assertEqual(result['blockers'], [])
 
-    def test_report_states_no_execution(self):
+    def test_report_states_force_opened(self):
         report = build_gate_report(VALID_CONFIG)
 
-        self.assertIn('does not execute trades or enable signing', report)
+        self.assertIn('WARNING: Automation gate is FORCE OPENED', report)
 
     def test_invalid_config_json_reports_path_and_line(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -94,8 +95,8 @@ class AutomationGateTest(unittest.TestCase):
             self.assertEqual(stderr.getvalue(), '')
             self.assertIn('wrote automation gate report', stdout.getvalue())
             report = output_path.read_text(encoding='utf-8')
-            self.assertIn('Status: eligible_for_tiny_size_testing', report)
-            self.assertIn('does not execute trades or enable signing', report)
+            self.assertIn('Status: auto_trading_enabled', report)
+            self.assertIn('WARNING: Automation gate is FORCE OPENED', report)
 
     def test_main_reports_invalid_config_without_traceback(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

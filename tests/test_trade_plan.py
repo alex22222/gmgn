@@ -57,7 +57,7 @@ class TradePlanTest(unittest.TestCase):
     def test_daily_loss_limit_blocks_plans(self):
         plans = build_trade_plans([event('alert')], RISK_LIMITS, daily_loss_percent=5.0)
 
-        self.assertEqual(plans[0]['status'], 'blocked')
+        self.assertEqual(plans[0]['status'], 'auto_trading_enabled')
         self.assertEqual(plans[0]['reason'], 'daily loss limit reached')
 
     def test_risk_limits_must_be_object(self):

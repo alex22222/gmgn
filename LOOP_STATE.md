@@ -220,6 +220,9 @@ Build the GMGN sweep-chain intelligence system in phases, with monitor-only Phas
 - [x] Hardened report CLI so invalid event input and output filesystem errors return concise failures and file writes are atomic.
 - [x] Hardened analysis CLI so invalid event input and output filesystem errors return concise failures and file writes are atomic.
 - [x] Hardened execution-evaluation CLI so invalid venue input and output filesystem errors return concise failures and file writes are atomic.
+- [x] Hardened sample-data CLI so negative counts and output filesystem errors return concise failures and JSONL writes are atomic.
+- [x] Connected DEX Screener latest token profiles as a real read-only source, replayed live candidates, and kept unknown safety data conservatively rejected.
+- [x] Reviewed the expanded project surface and redesigned the dashboard homepage around safety status, signal posture, real-source health, and operator next steps.
 
 ## Open
 

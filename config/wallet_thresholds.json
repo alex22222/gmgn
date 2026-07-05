@@ -1,0 +1,30 @@
+{
+  "default": {
+    "follow_score": 70,
+    "watch_score": 50,
+    "min_score": 40,
+    "max_robot_score": 60,
+    "min_trades_7d": 10,
+    "max_trades_7d": 500,
+    "min_profit_usd": 30000,
+    "min_holding_hours": 24,
+    "min_win_rate": 60,
+    "max_drawdown_percent": 40,
+    "min_sharpe_ratio": 0.5,
+    "min_expectancy": 0
+  },
+  "chains": {
+    "solana": {
+      "min_profit_usd": 30000,
+      "max_trades_7d": 500
+    },
+    "base": {
+      "min_profit_usd": 15000,
+      "max_trades_7d": 400
+    },
+    "bsc": {
+      "min_profit_usd": 10000,
+      "max_trades_7d": 300
+    }
+  }
+}

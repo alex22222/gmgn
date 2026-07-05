@@ -1,5 +1,31 @@
 __pycache__/
 *.pyc
 .env
+.env.*
 data/*.tmp
+data/*.pid
+data/audit_events.jsonl
+data/auto_copy_logs/
+data/auto_stop_loss_state.json
+data/dashboard.log
+data/trading_log.jsonl
+data/triggered_tp.json
+logs/
+.coverage
 
+# Security — credentials and secrets (must never be committed)
+*.pem
+keypair.pem
+*.key
+secrets.json
+credentials.json
+config.json
+config/wallet.json
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

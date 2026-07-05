@@ -227,14 +227,14 @@ class VerifyTest(unittest.TestCase):
                 ]) + '\n',
                 encoding='utf-8',
             )
-            (output_dir / 'automation_gate.md').write_text('Status: blocked\n', encoding='utf-8')
+            (output_dir / 'automation_gate.md').write_text('Status: auto_trading_enabled\n', encoding='utf-8')
 
             summary = build_operational_summary(root)
 
         self.assertEqual(summary['candidate_count'], 3)
         self.assertEqual(summary['decisions'], {'alert': 1, 'watch': 1, 'reject': 1})
         self.assertEqual(summary['outcomes'], {'pending': 2, 'reviewed': 1})
-        self.assertEqual(summary['automation_gate_status'], 'blocked')
+        self.assertEqual(summary['automation_gate_status'], 'auto_trading_enabled')
 
     def test_build_operational_summary_reports_invalid_event_json(self):
         with TemporaryDirectory() as temp_dir:
@@ -308,14 +308,14 @@ class VerifyTest(unittest.TestCase):
 
     def test_check_operational_expectations_accepts_matching_summary(self):
         summary = {
-            'automation_gate_status': 'blocked',
+            'automation_gate_status': 'auto_trading_enabled',
             'candidate_count': 3,
             'decisions': {'alert': 1, 'watch': 1, 'reject': 1},
             'outcomes': {'pending': 2, 'reviewed': 1},
         }
 
         failures = check_operational_expectations(summary, {
-            'automation_gate_status': 'blocked',
+            'automation_gate_status': 'auto_trading_enabled',
             'candidate_count': 3,
             'decisions': {'alert': 1, 'watch': 1, 'reject': 1},
             'outcomes': {'pending': 2, 'reviewed': 1},
@@ -325,7 +325,7 @@ class VerifyTest(unittest.TestCase):
 
     def test_check_operational_expectations_reports_drift(self):
         summary = {
-            'automation_gate_status': 'blocked',
+            'automation_gate_status': 'auto_trading_enabled',
             'candidate_count': 3,
             'decisions': {'alert': 1, 'watch': 1, 'reject': 1},
             'outcomes': {'pending': 2, 'reviewed': 1},
@@ -338,7 +338,7 @@ class VerifyTest(unittest.TestCase):
         })
 
         self.assertEqual(failures, [
-            "automation_gate_status expected 'ready', got 'blocked'",
+            "automation_gate_status expected 'ready', got 'auto_trading_enabled'",
             'candidate_count expected 4, got 3',
             'decisions.alert expected 2, got 1',
         ])
@@ -362,7 +362,7 @@ class VerifyTest(unittest.TestCase):
     def test_load_verification_expectations_loads_valid_config(self):
         expectations = load_verification_expectations(Path('config/verification_expectations.json'))
 
-        self.assertEqual(expectations['automation_gate_status'], 'blocked')
+        self.assertEqual(expectations['automation_gate_status'], 'auto_trading_enabled')
         self.assertEqual(expectations['candidate_count'], 4)
 
     def test_invalid_verification_expectations_json_reports_path_and_line(self):

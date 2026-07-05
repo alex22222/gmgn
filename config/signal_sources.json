@@ -1,0 +1,70 @@
+{
+  "version": "1.0",
+  "description": "GMGN Phase 2 — 信号源配置 (Signal Sources)",
+  "created_at": "2025-07-15T00:00:00+08:00",
+  "updated_at": "2025-07-15T00:00:00+08:00",
+  "signal_sources": [
+    {
+      "wallet_address": "EeHJn4X6FUGEbcjJE5ysB8usN8C7AY75Ej8TrvfgPRrZ",
+      "source_type": "whitelist_copy_trading",
+      "priority": 1,
+      "label": "whitelist_top_1",
+      "tags": ["gmgn", "smart_degen"],
+      "total_score": 76.11,
+      "enabled": true,
+      "signal_types": ["buy", "sell"],
+      "copy_weight": 0.387,
+      "risk_tier": "mini_real",
+      "max_single_trade_sol": 0.005,
+      "slippage_percent": 2.0,
+      "notes": "白名单评分#1，风险控制优秀，跟随买卖信号"
+    },
+    {
+      "wallet_address": "CAwVkbo3oTaTWfU8Wuc5g45vcbn6hq2t657wKWsVuZmP",
+      "source_type": "whitelist_copy_trading",
+      "priority": 2,
+      "label": "whitelist_top_2",
+      "tags": ["smart_degen"],
+      "total_score": 67.23,
+      "enabled": true,
+      "signal_types": ["buy", "sell"],
+      "copy_weight": 0.342,
+      "risk_tier": "mini_real",
+      "max_single_trade_sol": 0.005,
+      "slippage_percent": 2.0,
+      "notes": "白名单评分#2，新钱包但盈利能力强，跟随买卖信号"
+    },
+    {
+      "wallet_address": "7cVyqNK6fEq6EGAw1UoyKLy8ni84BanEKkdfj5FvZQBh",
+      "source_type": "whitelist_copy_trading",
+      "priority": 3,
+      "label": "whitelist_top_3",
+      "tags": ["padre", "smart_degen"],
+      "total_score": 53.4,
+      "enabled": true,
+      "signal_types": ["buy", "sell"],
+      "copy_weight": 0.271,
+      "risk_tier": "mini_real",
+      "max_single_trade_sol": 0.005,
+      "slippage_percent": 2.0,
+      "notes": "白名单评分#3，超短持仓 scalp 型，跟随买卖信号"
+    }
+  ],
+  "signal_processing": {
+    "detection_method": "onchain_activity_monitor",
+    "chain": "sol",
+    "polling_interval_seconds": 30,
+    "signal_ttl_seconds": 300,
+    "duplicate_filter_window_seconds": 60,
+    "minimum_signal_confidence": 0.7,
+    "aggregate_signals": false,
+    "wallet_weighted_routing": true
+  },
+  "risk_gates": {
+    "daily_loss_limit_sol": 0.015,
+    "max_concurrent_positions": 3,
+    "cooldown_after_loss_seconds": 300,
+    "require_approval_above_sol": 0.005,
+    "kill_switch_on_consecutive_losses": 3
+  }
+}

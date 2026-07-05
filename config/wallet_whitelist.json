@@ -1,0 +1,219 @@
+{
+  "version": "1.0",
+  "description": "GMGN Phase 2 — tiny_real 微型真实交易配置（单笔 ≤ 0.01 SOL，日亏损 ≤ 0.03 SOL）",
+  "exposure_level": "tiny_real",
+  "trade_mode": "real",
+  "created_at": "2025-07-15T00:00:00+08:00",
+  "updated_at": "2026-07-05T12:44:34.447456+00:00",
+  "wallets": [
+    {
+      "wallet_address": "CAwVkbo3oTaTWfU8Wuc5g45vcbn6hq2t657wKWsVuZmP",
+      "label": "whitelist_top_2",
+      "tags": [
+        "smart_degen"
+      ],
+      "total_score": 67.23,
+      "grade": "C",
+      "copy_weight": 0.273326,
+      "copy_weight_percent": "27.3%",
+      "mode": "follow",
+      "mode_description": "跟随买卖 — 检测到此钱包的买入信号时，系统执行同步买入；检测到此钱包的卖出信号时，系统执行同步卖出",
+      "risk_limits": {
+        "max_single_trade_sol": 0.01,
+        "max_daily_loss_sol": 0.03,
+        "max_daily_trades": 3,
+        "slippage_percent": 2.0,
+        "stop_loss_percent": -40.0,
+        "take_profit_steps": [
+          {
+            "price_change_percent": 100.0,
+            "sell_percent": 50.0
+          },
+          {
+            "price_change_percent": 300.0,
+            "sell_percent": 50.0
+          }
+        ]
+      },
+      "stats_snapshot": {
+        "total_trades": 208,
+        "realized_profit": 2452.79,
+        "winrate": 44.44,
+        "token_num": 29,
+        "avg_holding_hours": 97.93,
+        "wallet_age_days": 13
+      },
+      "dimension_scores": {
+        "profitability": 61.11,
+        "win_rate": 45.0,
+        "risk_control": 78.22,
+        "consistency": 73.0,
+        "activity": 100.0,
+        "stability": 63.6
+      },
+      "enabled": true,
+      "notes": "新钱包(13天)但盈利能力强，活动度满分，分散度略低(29代币)。分配中等跟单权重，需密切监控。"
+    },
+    {
+      "wallet_address": "7cVyqNK6fEq6EGAw1UoyKLy8ni84BanEKkdfj5FvZQBh",
+      "label": "whitelist_top_3",
+      "tags": [
+        "padre",
+        "smart_degen"
+      ],
+      "total_score": 53.4,
+      "grade": "D",
+      "copy_weight": 0.2171,
+      "copy_weight_percent": "21.7%",
+      "mode": "follow",
+      "mode_description": "跟随买卖 — 检测到此钱包的买入信号时，系统执行同步买入；检测到此钱包的卖出信号时，系统执行同步卖出",
+      "risk_limits": {
+        "max_single_trade_sol": 0.01,
+        "max_daily_loss_sol": 0.03,
+        "max_daily_trades": 3,
+        "slippage_percent": 2.0,
+        "stop_loss_percent": -40.0,
+        "take_profit_steps": [
+          {
+            "price_change_percent": 100.0,
+            "sell_percent": 50.0
+          },
+          {
+            "price_change_percent": 300.0,
+            "sell_percent": 50.0
+          }
+        ]
+      },
+      "stats_snapshot": {
+        "total_trades": 284,
+        "token_num": 112,
+        "realized_profit": 1377.43,
+        "winrate": 60.36,
+        "avg_holding_hours": 0.81,
+        "wallet_age_days": 249
+      },
+      "dimension_scores": {
+        "profitability": 80.0,
+        "win_rate": 85.0,
+        "risk_control": 76.0,
+        "consistency": 45.22,
+        "activity": 100.0,
+        "stability": 73.0
+      },
+      "enabled": true,
+      "notes": "超短持仓(~0.8h)的 scalp 型交易者，胜率高(85%)但一致性偏弱。分配最低跟单权重，适合快进快出策略。"
+    },
+    {
+      "wallet_address": "DytMWmgaVBQrytfWqCp7oCUheuf7hnAhq3U1bA6Bujsz",
+      "label": "leader_pool_4",
+      "tags": [
+        "smart_degen"
+      ],
+      "total_score": 66.56,
+      "grade": "C",
+      "copy_weight": 0.270602,
+      "copy_weight_percent": "27.1%",
+      "mode": "follow",
+      "enabled": true,
+      "risk_limits": {
+        "max_single_trade_sol": 0.01,
+        "max_daily_loss_sol": 0.03,
+        "max_daily_trades": 3,
+        "slippage_percent": 2.0,
+        "stop_loss_percent": -40.0,
+        "take_profit_steps": [
+          {
+            "price_change_percent": 100.0,
+            "sell_percent": 50.0
+          },
+          {
+            "price_change_percent": 300.0,
+            "sell_percent": 50.0
+          }
+        ]
+      },
+      "stats_snapshot": {
+        "total_trades": 249,
+        "realized_profit": 1451.7509117666184,
+        "winrate": 64.0,
+        "avg_holding_hours": 38.460443121693125,
+        "period": null
+      },
+      "dimension_scores": {
+        "profitability": 35.63,
+        "win_rate": 85.0,
+        "risk_control": 76.0,
+        "consistency": 79.0,
+        "activity": 64.0,
+        "stability": 72.0
+      },
+      "notes": "Leader 池自动晋级；默认 observe 且暂停，需人工在跟单配置启用。"
+    },
+    {
+      "wallet_address": "En1eeXNnXm7d28FRgG4URGQQBSDvBxN3us1VJhhV1Rgu",
+      "label": "leader_pool_manual_4",
+      "tags": [
+        "smart_degen",
+        "axiom"
+      ],
+      "total_score": 58.78,
+      "grade": "D",
+      "copy_weight": 0.238972,
+      "copy_weight_percent": "23.9%",
+      "mode": "follow",
+      "enabled": true,
+      "risk_limits": {
+        "max_single_trade_sol": 0.01,
+        "max_daily_loss_sol": 0.03,
+        "max_daily_trades": 3,
+        "slippage_percent": 2.0,
+        "stop_loss_percent": -40.0,
+        "take_profit_steps": [
+          {
+            "price_change_percent": 100.0,
+            "sell_percent": 50.0
+          },
+          {
+            "price_change_percent": 300.0,
+            "sell_percent": 50.0
+          }
+        ]
+      },
+      "stats_snapshot": {
+        "total_trades": 385,
+        "realized_profit": 1231.6381787073265,
+        "winrate": 56.00000000000001,
+        "avg_holding_hours": 42.67060363247863,
+        "period": null
+      },
+      "dimension_scores": {
+        "profitability": 25.0,
+        "win_rate": 65.0,
+        "risk_control": 76.0,
+        "consistency": 79.0,
+        "activity": 42.79,
+        "stability": 82.0
+      },
+      "notes": "评分白名单人工加入；默认 observe 且暂停，需在跟单配置中启用。"
+    }
+  ],
+  "global_settings": {
+    "exposure_level": "tiny_real",
+    "max_total_daily_trades": 3,
+    "max_total_daily_loss_sol": 0.03,
+    "default_slippage_percent": 2.0,
+    "default_mode": "follow",
+    "chain": "sol",
+    "execution_venue": "GMGN",
+    "rebalance_frequency": "daily",
+    "audit_log_enabled": true,
+    "feishu_alert_enabled": true,
+    "auto_confirm": true
+  },
+  "weight_calculation": {
+    "method": "active_score_normalized",
+    "description": "仅对启用且未 paused 的 leader 按 total_score 归一化；暂停 leader 权重为 0",
+    "total_score_sum": 245.97,
+    "formula": "active_wallet_weight = wallet_score / active_score_sum"
+  }
+}

@@ -6,7 +6,15 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from gmgn_monitor.dexscreener import DexScreenerPayloadSource, DexScreenerSearchSource, main, map_pair_to_candidate, write_jsonl
+from gmgn_monitor.dexscreener import (
+    DexScreenerLatestProfilesSource,
+    DexScreenerPayloadSource,
+    DexScreenerSearchSource,
+    main,
+    map_pair_to_candidate,
+    map_profile_to_candidate,
+    write_jsonl,
+)
 from gmgn_monitor.schema import Candidate
 from gmgn_monitor.scoring import score_candidate
 
@@ -44,6 +52,79 @@ class DexScreenerTest(unittest.TestCase):
 
         self.assertEqual(result['decision'], 'reject')
         self.assertIn('honeypot risk present', result['reasons'])
+
+    def test_maps_latest_profile_fallback_to_schema_valid_rejected_candidate(self):
+        candidate_data = map_profile_to_candidate({
+            'chainId': 'solana',
+            'tokenAddress': 'Profile111111111111111111111111111111111111',
+        })
+        candidate = Candidate.from_dict(candidate_data)
+
+        result = score_candidate(candidate)
+
+        self.assertEqual(candidate_data['source'], 'dexscreener:token-profiles')
+        self.assertEqual(candidate_data['symbol'], 'UNKNOWN')
+        self.assertEqual(result['decision'], 'reject')
+        self.assertIn('honeypot risk present', result['reasons'])
+
+    def test_latest_profiles_source_enriches_pairs_from_token_endpoint(self):
+        profile_payload = json.dumps([
+            {'chainId': 'solana', 'tokenAddress': 'Token1111111111111111111111111111111111111'},
+        ]).encode('utf-8')
+        token_payload = json.dumps([
+            {
+                'chainId': 'solana',
+                'baseToken': {'address': 'Token1111111111111111111111111111111111111', 'symbol': 'LIVE'},
+                'fdv': 42000,
+                'liquidity': {'usd': 9000},
+                'volume': {'m5': 1800},
+                'txns': {'m5': {'buys': 8, 'sells': 7}},
+            },
+        ]).encode('utf-8')
+
+        with patch('gmgn_monitor.dexscreener.urlopen') as urlopen:
+            urlopen.side_effect = [self.Response(profile_payload), self.Response(token_payload)]
+            records = list(DexScreenerLatestProfilesSource(limit=1).load())
+
+        Candidate.from_dict(records[0])
+        self.assertEqual(records[0]['source'], 'dexscreener:token-profiles')
+        self.assertEqual(records[0]['symbol'], 'LIVE')
+        self.assertEqual(records[0]['liquidity'], 9000.0)
+        self.assertEqual(records[0]['tx_count_1m'], 15.0)
+        self.assertIn('/token-profiles/latest/v1', urlopen.call_args_list[0].args[0].full_url)
+        self.assertIn('/tokens/v1/solana/Token1111111111111111111111111111111111111', urlopen.call_args_list[1].args[0].full_url)
+
+    def test_latest_profiles_source_falls_back_when_pair_is_missing(self):
+        profile_payload = json.dumps([
+            {'chainId': 'solana', 'tokenAddress': 'Token1111111111111111111111111111111111111'},
+        ]).encode('utf-8')
+
+        with patch('gmgn_monitor.dexscreener.urlopen') as urlopen:
+            urlopen.side_effect = [self.Response(profile_payload), self.Response(b'[]')]
+            records = list(DexScreenerLatestProfilesSource(limit=1).load())
+
+        Candidate.from_dict(records[0])
+        self.assertEqual(records[0]['source'], 'dexscreener:token-profiles')
+        self.assertEqual(records[0]['symbol'], 'UNKNOWN')
+        self.assertEqual(records[0]['liquidity'], 0.0)
+
+    def test_latest_profiles_source_rejects_malformed_profile_payload(self):
+        with patch('gmgn_monitor.dexscreener.urlopen') as urlopen:
+            urlopen.return_value = self.Response(b'{}')
+
+            with self.assertRaisesRegex(ValueError, 'DEX Screener token profiles payload must be a list'):
+                list(DexScreenerLatestProfilesSource(limit=1).load())
+
+    def test_latest_profiles_source_rejects_malformed_tokens_payload(self):
+        profile_payload = json.dumps([
+            {'chainId': 'solana', 'tokenAddress': 'Token1111111111111111111111111111111111111'},
+        ]).encode('utf-8')
+
+        with patch('gmgn_monitor.dexscreener.urlopen') as urlopen:
+            urlopen.side_effect = [self.Response(profile_payload), self.Response(b'{}')]
+
+            with self.assertRaisesRegex(ValueError, 'DEX Screener tokens payload must be a list'):
+                list(DexScreenerLatestProfilesSource(limit=1).load())
 
     def test_dirty_numeric_values_map_to_schema_valid_unsafe_defaults(self):
         candidate = map_pair_to_candidate({
@@ -316,8 +397,66 @@ class DexScreenerTest(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertEqual(stderr.getvalue(), '')
-            self.assertIn('q=pump+token', urlopen.call_args.args[0])
+            self.assertIn('q=pump+token', urlopen.call_args.args[0].full_url)
+            self.assertEqual(urlopen.call_args.args[0].headers['User-agent'], 'gmgn-monitor/0.1 read-only')
             self.assertEqual(output_path.read_text(encoding='utf-8'), '')
+
+    def test_main_fetches_latest_profiles_without_query(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_path = Path(tmp_dir) / 'candidates.jsonl'
+            profile_payload = json.dumps([
+                {'chainId': 'solana', 'tokenAddress': 'Token1111111111111111111111111111111111111'},
+            ]).encode('utf-8')
+            token_payload = json.dumps([
+                {
+                    'chainId': 'solana',
+                    'baseToken': {'address': 'Token1111111111111111111111111111111111111', 'symbol': 'LIVE'},
+                    'fdv': 42000,
+                    'liquidity': {'usd': 9000},
+                    'volume': {'m5': 1800},
+                    'txns': {'m5': {'buys': 8, 'sells': 7}},
+                },
+            ]).encode('utf-8')
+
+            stderr = io.StringIO()
+            stdout = io.StringIO()
+            with patch('gmgn_monitor.dexscreener.urlopen') as urlopen:
+                urlopen.side_effect = [self.Response(profile_payload), self.Response(token_payload)]
+                with patch('sys.argv', [
+                    'dexscreener',
+                    '--latest-profiles',
+                    '--limit', '1',
+                    '--output', str(output_path),
+                ]):
+                    with redirect_stdout(stdout), redirect_stderr(stderr):
+                        code = main()
+
+            self.assertEqual(code, 0)
+            self.assertEqual(stderr.getvalue(), '')
+            self.assertIn('wrote 1 read-only candidates', stdout.getvalue())
+            self.assertIn('"source": "dexscreener:token-profiles"', output_path.read_text(encoding='utf-8'))
+
+    def test_main_reports_malformed_latest_profiles_without_traceback(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_path = Path(tmp_dir) / 'candidates.jsonl'
+
+            stderr = io.StringIO()
+            with patch('gmgn_monitor.dexscreener.urlopen') as urlopen:
+                urlopen.return_value = self.Response(b'{}')
+                with patch('sys.argv', [
+                    'dexscreener',
+                    '--latest-profiles',
+                    '--limit', '1',
+                    '--output', str(output_path),
+                ]):
+                    with redirect_stderr(stderr):
+                        code = main()
+
+        self.assertEqual(code, 2)
+        self.assertIn('invalid DEX Screener data:', stderr.getvalue())
+        self.assertIn('DEX Screener token profiles payload must be a list', stderr.getvalue())
+        self.assertNotIn('Traceback', stderr.getvalue())
+        self.assertFalse(output_path.exists())
 
     def test_main_reports_malformed_live_response_json(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

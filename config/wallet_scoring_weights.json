@@ -1,0 +1,54 @@
+{
+  "default": {
+    "profitability": 0.25,
+    "win_rate": 0.20,
+    "risk_control": 0.20,
+    "consistency": 0.15,
+    "activity": 0.10,
+    "stability": 0.10,
+    "copy_threshold": 80.0,
+    "watch_threshold": 70.0,
+    "observe_threshold": 40.0,
+    "min_trades_for_scoring": 10,
+    "max_robot_score": 60.0,
+    "max_trades_7d": 500,
+    "min_win_rate_hard": 30.0,
+    "min_avg_holding_hours": 1.0,
+    "min_total_pnl": 0.0,
+    "min_total_trades_for_pnl_check": 50,
+    "bot_pattern_penalty_threshold": 20.0,
+    "win_rate_penalty_threshold": 50.0
+  },
+  "chains": {
+    "solana": {
+      "profitability": 0.25,
+      "win_rate": 0.20,
+      "risk_control": 0.20,
+      "consistency": 0.15,
+      "activity": 0.10,
+      "stability": 0.10,
+      "max_trades_7d": 500,
+      "min_avg_holding_hours": 1.0
+    },
+    "base": {
+      "profitability": 0.25,
+      "win_rate": 0.20,
+      "risk_control": 0.20,
+      "consistency": 0.15,
+      "activity": 0.10,
+      "stability": 0.10,
+      "max_trades_7d": 400,
+      "min_avg_holding_hours": 2.0
+    },
+    "bsc": {
+      "profitability": 0.25,
+      "win_rate": 0.20,
+      "risk_control": 0.20,
+      "consistency": 0.15,
+      "activity": 0.10,
+      "stability": 0.10,
+      "max_trades_7d": 600,
+      "min_avg_holding_hours": 0.5
+    }
+  }
+}

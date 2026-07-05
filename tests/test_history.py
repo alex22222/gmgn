@@ -126,7 +126,7 @@ class HistoryTest(unittest.TestCase):
             {
                 'status': 'ok',
                 'generated_at': '2026-07-01T12:02:00+00:00',
-                'operational_summary': {'automation_gate_status': 'blocked', 'candidate_count': 4},
+                'operational_summary': {'automation_gate_status': 'auto_trading_enabled', 'candidate_count': 4},
                 'steps': self._ok_steps(),
             },
         ]
@@ -229,7 +229,7 @@ class HistoryTest(unittest.TestCase):
             'last_record_steps_complete': True,
             'last_record_timestamp_valid': True,
             'last_generated_at': 'now',
-            'last_operational_summary': {'automation_gate_status': 'blocked', 'candidate_count': 4},
+            'last_operational_summary': {'automation_gate_status': 'auto_trading_enabled', 'candidate_count': 4},
             'last_status': 'ok',
             'last_success_generated_at': 'now',
             'last_step_statuses': {'pipeline': 'ok'},
@@ -357,7 +357,7 @@ class HistoryTest(unittest.TestCase):
 
     def test_check_history_integrity_accepts_matching_operational_summaries(self):
         summary = {
-            'automation_gate_status': 'blocked',
+            'automation_gate_status': 'auto_trading_enabled',
             'candidate_count': 4,
             'decisions': {'alert': 1, 'reject': 2, 'watch': 1},
             'outcomes': {'pending': 2, 'reviewed': 2},
@@ -375,7 +375,7 @@ class HistoryTest(unittest.TestCase):
 
     def test_check_history_integrity_reports_missing_and_drifted_operational_summaries(self):
         expected = {
-            'automation_gate_status': 'blocked',
+            'automation_gate_status': 'auto_trading_enabled',
             'candidate_count': 4,
             'decisions': {'alert': 1, 'reject': 2, 'watch': 1},
             'outcomes': {'pending': 2, 'reviewed': 2},

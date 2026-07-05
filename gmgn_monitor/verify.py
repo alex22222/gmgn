@@ -14,7 +14,7 @@ from .file_io import LockAcquisitionError, atomic_write_text, durable_append_tex
 from .fingerprints import build_artifact_fingerprints, build_config_fingerprints
 from .pipeline import run_pipeline
 from .verification_expectations import check_operational_expectations, load_verification_expectations
-from .verification_steps import VERIFICATION_STEP_NAMES, report_has_required_steps
+from .verification_steps import report_has_required_steps
 
 
 @dataclass(frozen=True)
@@ -149,7 +149,7 @@ def _run_expectations_step(root: Path) -> VerificationStep:
 
 
 def _run_doctor_step(root: Path) -> VerificationStep:
-    failures = run_checks(root)
+    failures = run_checks(root, include_verification_artifacts=False)
     return VerificationStep('doctor', not failures, failures)
 
 

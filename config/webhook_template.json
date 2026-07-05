@@ -1,0 +1,10 @@
+{
+  "webhook_url": "https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_TOKEN",
+  "template": {
+    "msg_type": "text",
+    "content": {
+      "text": "GMGN Alert: {level} from {source} - {message}"
+    }
+  },
+  "_comment": "Copy this file to config/webhook.json and replace YOUR_TOKEN with your actual webhook token. Supports Feishu, DingTalk, Slack, or any generic HTTP webhook that accepts JSON POST."
+}

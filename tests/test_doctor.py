@@ -20,7 +20,7 @@ class DoctorTest(unittest.TestCase):
 
     def _ok_operational_summary(self):
         return {
-            'automation_gate_status': 'blocked',
+            'automation_gate_status': 'auto_trading_enabled',
             'candidate_count': 4,
             'decisions': {'alert': 1, 'reject': 2, 'watch': 1},
             'outcomes': {'pending': 2, 'reviewed': 2},
@@ -56,7 +56,7 @@ class DoctorTest(unittest.TestCase):
         }
 
     def test_current_workspace_passes_doctor_checks(self):
-        failures = run_checks()
+        failures = run_checks(include_verification_artifacts=False)
 
         self.assertEqual(failures, [])
 

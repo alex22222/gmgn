@@ -2,19 +2,23 @@ from __future__ import annotations
 
 import argparse
 import json
+import ssl
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from math import isfinite
 from pathlib import Path
 from urllib.error import URLError
-from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.parse import quote, urlencode
+from urllib.request import Request, urlopen
 
 from .file_io import atomic_write_jsonl
 from .serialization import load_json
 
 
 DEXSCREENER_SEARCH_URL = 'https://api.dexscreener.com/latest/dex/search'
+DEXSCREENER_TOKEN_PROFILES_URL = 'https://api.dexscreener.com/token-profiles/latest/v1'
+DEXSCREENER_TOKENS_URL = 'https://api.dexscreener.com/tokens/v1/{chain_id}/{token_addresses}'
+USER_AGENT = 'gmgn-monitor/0.1 read-only'
 
 
 class DexScreenerSearchSource:
@@ -39,15 +43,64 @@ class DexScreenerPayloadSource:
             yield map_pair_to_candidate(pair)
 
 
+class DexScreenerLatestProfilesSource:
+    def __init__(self, limit: int = 20):
+        self.limit = _validate_limit(limit)
+
+    def load(self):
+        profiles = _profiles_from_payload(fetch_token_profiles_payload(), self.limit)
+        pairs_by_token = _fetch_pairs_by_profile_token(profiles)
+        for profile in profiles:
+            chain_id = _string_value(profile.get('chainId'), 'unknown')
+            token_address = _string_value(profile.get('tokenAddress'), 'unknown')
+            pair = pairs_by_token.get((chain_id, token_address))
+            if pair:
+                yield map_pair_to_candidate(pair, source='dexscreener:token-profiles')
+            else:
+                yield map_profile_to_candidate(profile)
+
+
 def fetch_search_payload(query: str) -> dict:
     url = f'{DEXSCREENER_SEARCH_URL}?{urlencode({"q": query})}'
-    with urlopen(url, timeout=15) as response:
+    return _fetch_json_url(url, label='DEX Screener response')
+
+
+def fetch_token_profiles_payload() -> list:
+    return _fetch_json_url(DEXSCREENER_TOKEN_PROFILES_URL, label='DEX Screener token profiles response')
+
+
+def fetch_tokens_payload(chain_id: str, token_addresses: list[str]) -> list:
+    url = DEXSCREENER_TOKENS_URL.format(
+        chain_id=quote(chain_id, safe=''),
+        token_addresses=quote(','.join(token_addresses), safe=','),
+    )
+    return _fetch_json_url(url, label='DEX Screener tokens response')
+
+
+def _fetch_json_url(url: str, label: str):
+    context = _tls_context()
+    kwargs = {'timeout': 15}
+    if context is not None:
+        kwargs['context'] = context
+    request = Request(url, headers={'User-Agent': USER_AGENT})
+    with urlopen(request, **kwargs) as response:
         try:
             return json.loads(response.read().decode('utf-8'))
         except UnicodeDecodeError as exc:
-            raise ValueError(f'invalid DEX Screener response UTF-8: {exc.reason}') from exc
+            raise ValueError(f'invalid {label} UTF-8: {exc.reason}') from exc
         except json.JSONDecodeError as exc:
-            raise ValueError(f'invalid DEX Screener response JSON at line {exc.lineno}: {exc.msg}') from exc
+            raise ValueError(f'invalid {label} JSON at line {exc.lineno}: {exc.msg}') from exc
+
+
+def _tls_context():
+    default_cafile = ssl.get_default_verify_paths().cafile
+    if default_cafile and Path(default_cafile).exists():
+        return None
+    try:
+        import certifi
+    except ImportError:
+        return None
+    return ssl.create_default_context(cafile=certifi.where())
 
 
 def _validate_limit(limit: int) -> int:
@@ -76,7 +129,87 @@ def _pairs_from_payload(payload: dict, limit: int) -> list[dict]:
     return pairs[:limit]
 
 
-def map_pair_to_candidate(pair: dict) -> dict:
+def _profiles_from_payload(payload: list, limit: int) -> list[dict]:
+    if not isinstance(payload, list):
+        raise ValueError('DEX Screener token profiles payload must be a list')
+    profiles = []
+    for index, profile in enumerate(payload[:limit], start=1):
+        if not isinstance(profile, dict):
+            raise ValueError(f'DEX Screener token profile {index} must be an object')
+        profiles.append(profile)
+    return profiles
+
+
+def _fetch_pairs_by_profile_token(profiles: list[dict]) -> dict[tuple[str, str], dict]:
+    requested_by_chain: dict[str, list[str]] = {}
+    for profile in profiles:
+        chain_id = _string_value(profile.get('chainId'), '')
+        token_address = _string_value(profile.get('tokenAddress'), '')
+        if not chain_id or not token_address:
+            continue
+        requested_by_chain.setdefault(chain_id, [])
+        if token_address not in requested_by_chain[chain_id]:
+            requested_by_chain[chain_id].append(token_address)
+
+    pairs_by_token = {}
+    for chain_id, token_addresses in requested_by_chain.items():
+        for chunk in _chunks(token_addresses, 30):
+            payload = fetch_tokens_payload(chain_id, chunk)
+            for pair in _token_pairs_from_payload(payload):
+                token_address = _pair_token_address(pair)
+                if token_address and (chain_id, token_address) not in pairs_by_token:
+                    pairs_by_token[(chain_id, token_address)] = pair
+    return pairs_by_token
+
+
+def _chunks(values: list[str], size: int):
+    for index in range(0, len(values), size):
+        yield values[index:index + size]
+
+
+def _token_pairs_from_payload(payload: list) -> list[dict]:
+    if not isinstance(payload, list):
+        raise ValueError('DEX Screener tokens payload must be a list')
+    pairs = []
+    for index, pair in enumerate(payload, start=1):
+        if not isinstance(pair, dict):
+            raise ValueError(f'DEX Screener token pair {index} must be an object')
+        pairs.append(pair)
+    return pairs
+
+
+def _pair_token_address(pair: dict) -> str:
+    base_token = _object_value(pair.get('baseToken'))
+    return _string_value(base_token.get('address'), '')
+
+
+def map_profile_to_candidate(profile: dict) -> dict:
+    return {
+        'chain': _string_value(profile.get('chainId'), 'unknown'),
+        'token_address': _string_value(profile.get('tokenAddress'), 'unknown'),
+        'symbol': 'UNKNOWN',
+        'detected_at': datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
+        'source': 'dexscreener:token-profiles',
+        'liquidity': 0.0,
+        'market_cap': 0.0,
+        'volume_1m': 0.0,
+        'volume_5m': 0.0,
+        'tx_count_1m': 0.0,
+        'holder_count': 0,
+        'top10_holder_percent': 100.0,
+        'dev_holding_percent': 100.0,
+        'insider_or_rat_percent': 100.0,
+        'bundle_buy_percent': 100.0,
+        'mint_renounced': False,
+        'freeze_renounced': False,
+        'lp_burned_or_locked': False,
+        'honeypot_risk': True,
+        'blacklist_risk': True,
+        'tax_risk': True,
+    }
+
+
+def map_pair_to_candidate(pair: dict, source: str = 'dexscreener:search') -> dict:
     base_token = _object_value(pair.get('baseToken'))
     chain = _string_value(pair.get('chainId'), 'unknown')
     token_address = _string_value(base_token.get('address'), _string_value(pair.get('pairAddress'), 'unknown'))
@@ -89,8 +222,8 @@ def map_pair_to_candidate(pair: dict) -> dict:
         'chain': chain,
         'token_address': token_address,
         'symbol': symbol,
-        'detected_at': datetime.now(UTC).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
-        'source': 'dexscreener:search',
+        'detected_at': datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
+        'source': source,
         'liquidity': liquidity,
         'market_cap': _number(pair.get('fdv')),
         'volume_1m': 0.0,
@@ -160,10 +293,16 @@ def main() -> int:
     parser.add_argument('--limit', type=int, default=20)
     parser.add_argument('--output', type=Path, default=Path('data/dexscreener_candidates.jsonl'))
     parser.add_argument('--payload', type=Path, help='Use a saved DEX Screener JSON payload instead of live network fetch.')
+    parser.add_argument('--latest-profiles', action='store_true', help='Fetch latest DEX Screener token profiles, then enrich market fields from token pairs.')
     args = parser.parse_args()
 
     try:
-        source = DexScreenerPayloadSource(args.payload, args.limit) if args.payload else DexScreenerSearchSource(args.query, args.limit)
+        if args.payload:
+            source = DexScreenerPayloadSource(args.payload, args.limit)
+        elif args.latest_profiles:
+            source = DexScreenerLatestProfilesSource(args.limit)
+        else:
+            source = DexScreenerSearchSource(args.query, args.limit)
         records = list(source.load())
     except URLError as exc:
         print(f'failed to fetch DEX Screener data: {exc}', file=sys.stderr)

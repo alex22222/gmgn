@@ -1,10 +1,12 @@
 {
   "daily_loss_limit_percent": 5.0,
   "max_single_position_percent": 2.0,
+  "max_total_positions": 3,
   "default_stop_loss_percent": -40.0,
+  "circuit_breaker_cooldown_seconds": 600,
+  "kill_switch": false,
   "take_profit_steps": [
     {"price_change_percent": 100.0, "sell_percent": 50.0},
     {"price_change_percent": 300.0, "sell_percent": 50.0}
   ]
 }
-

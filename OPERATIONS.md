@@ -219,7 +219,36 @@ This file is text only. It is meant for review and manual copy/paste. The comman
 
 ## Optional Read-Only DEX Screener Fetch
 
-DEX Screener provides public read-only API endpoints documented at `https://docs.dexscreener.com/api/reference`. The prototype adapter currently uses search results and maps unknown safety fields to unsafe defaults, so fetched candidates should be expected to reject until another safety-enrichment source is added.
+DEX Screener provides public read-only API endpoints documented at `https://docs.dexscreener.com/api/reference`. The adapter supports search results and the latest token profiles feed. It maps unknown safety fields to unsafe defaults, so fetched candidates should be expected to reject until another safety-enrichment source is added.
+
+Fetch the latest token profiles from the live read-only API, enrich available market fields from token pairs, and store candidate JSONL:
+
+```bash
+python3 -m gmgn_monitor.dexscreener \
+  --latest-profiles \
+  --limit 10 \
+  --output data/dexscreener_latest_profiles_candidates.jsonl
+```
+
+Then replay the latest-profile candidates:
+
+```bash
+python3 -m gmgn_monitor.replay \
+  --input data/dexscreener_latest_profiles_candidates.jsonl \
+  --output data/dexscreener_latest_profiles_events.jsonl \
+  --config config/thresholds.json
+```
+
+Generate a review summary:
+
+```bash
+python3 -m gmgn_monitor.report \
+  --input data/dexscreener_latest_profiles_events.jsonl \
+  --output data/dexscreener_latest_profiles_summary.md \
+  --title "DEX Screener Latest Profiles Summary"
+```
+
+Market search remains available:
 
 ```bash
 python3 -m gmgn_monitor.dexscreener \
@@ -259,6 +288,9 @@ python3 -m gmgn_monitor.dexscreener \
 - `data/telegram_dry_run.txt`: Telegram-ready dry-run messages.
 - `data/dexscreener_candidates.jsonl`: optional read-only DEX Screener candidate fixtures.
 - `data/dexscreener_events.jsonl`: optional scored DEX Screener candidate events.
+- `data/dexscreener_latest_profiles_candidates.jsonl`: live latest token profiles converted into conservative candidate fixtures.
+- `data/dexscreener_latest_profiles_events.jsonl`: scored latest-profile candidate events.
+- `data/dexscreener_latest_profiles_summary.md`: review summary for latest-profile candidate events.
 
 ## Add Fixture Records
 

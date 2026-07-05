@@ -1,6 +1,6 @@
 {
   "artifact_fingerprints": {
-    "data/pipeline/automation_gate.md": "9d6cbad5004508bff7c3b6cd74f8d2fcf9dc3d9c130e87ecc76a4ff8627452b8",
+    "data/pipeline/automation_gate.md": "3c176ce512463896a3c008b22eb07e67edd201e4d22d84068783e81ae8c431d1",
     "data/pipeline/candidate_events.jsonl": "27223b17fdb32fee40f4f01fa47fd8e3cdc63de76c3ffc6502bdac1bf592cc5f",
     "data/pipeline/daily_summary.md": "d94de677428de70c4b01820dc9c210f8735c116aad147f894610ff48cd4aef6c",
     "data/pipeline/outcome_analysis.md": "231356a6851a5ba0fabc0463b045bc1092ae296b3760cbd350f8da75ba614b22",
@@ -9,15 +9,15 @@
     "data/pipeline/trade_plans.json": "a3e8519ca6a503c6928ea77b56fb2a371c26ca79946930b9b0d6b951c5d69e99"
   },
   "config_fingerprints": {
-    "config/automation_gate.json": "6f52ffa492ace9865b120cd2efdcc15daf14e8b6ed8b14812ef0dc5891810aab",
+    "config/automation_gate.json": "fd5c7bdf7442162c2c5d251032c514b17a44bcf40088c0cb4062a735d3a653bc",
     "config/execution_venues.json": "61a097fe5d583d8881e784526ddf8a983c5a3ccd82f2aadbab6ceda8d597a6b6",
-    "config/risk_limits.json": "8073b6b804865bcffef0e9c3e175f4f802fcbabe3b4045e9683ecf3eafe1ac49",
+    "config/risk_limits.json": "037005a4813cd767e2910a66cb28b71cede9e1959f9fd13b2bd1276eed3cc41c",
     "config/thresholds.json": "b51cb4d868effe8dfab7bfbec910303c13a436342bb2ed9bc6835e4aec52073c",
-    "config/verification_expectations.json": "ef65cfefa289d75561fc783c70952aba1872647ec823c98cc5c7bbf8c22e6c39"
+    "config/verification_expectations.json": "53f9920dfa4fa5e7367eafb2adbf7f5ce9a30eff2312c89b1713eec5bf15d6d6"
   },
-  "generated_at": "2026-07-02T14:32:07.138814+00:00",
+  "generated_at": "2026-07-05T12:53:03.319023+00:00",
   "operational_summary": {
-    "automation_gate_status": "blocked",
+    "automation_gate_status": "auto_trading_enabled",
     "candidate_count": 4,
     "decisions": {
       "alert": 1,
@@ -56,9 +56,9 @@
     },
     {
       "details": [
-        "...............................................................................................................................................................................................................................................................................................................................",
+        "..........................................................................................................................................................................................................................................................................................................................................................................................................................................",
         "----------------------------------------------------------------------",
-        "Ran 319 tests in 1.544s",
+        "Ran 426 tests in 2.514s",
         "",
         "OK"
       ],

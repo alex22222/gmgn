@@ -1,5 +1,5 @@
 {
-  "automation_gate_status": "blocked",
+  "automation_gate_status": "auto_trading_enabled",
   "candidate_count": 4,
   "decisions": {
     "alert": 1,

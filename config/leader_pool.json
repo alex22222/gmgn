@@ -1,0 +1,16 @@
+{
+  "discovery_target": 500,
+  "high_quality_target": 40,
+  "whitelist_target": 10,
+  "backtest_target": 10,
+  "min_score": 65.0,
+  "min_win_rate_percent": 60.0,
+  "min_total_trades": 50,
+  "score_batch_size": 10,
+  "score_concurrency": 4,
+  "lookback_windows": [
+    "7d",
+    "14d",
+    "30d"
+  ]
+}

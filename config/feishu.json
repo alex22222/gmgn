@@ -1,0 +1,8 @@
+{
+  "app_id": "${FEISHU_APP_ID}",
+  "app_secret": "${FEISHU_APP_SECRET}",
+  "chat_id": "${FEISHU_CHAT_ID}",
+  "api_base": "https://open.feishu.cn/open-apis",
+  "enabled": true,
+  "_security_note": "所有凭证均已改为环境变量引用。请在运行时设置 FEISHU_APP_ID、FEISHU_APP_SECRET、FEISHU_CHAT_ID 环境变量。"
+}

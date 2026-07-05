@@ -1,0 +1,44 @@
+{
+  "trade_mode": "dryrun",
+  "current_level": "mini_real",
+  "consecutive_days": 9,
+  "config": {
+    "level": "mini_real",
+    "max_position_sol": 0.005,
+    "max_daily_loss_percent": 5.0,
+    "max_positions": 3,
+    "stop_loss_percent": -65.0,
+    "take_profit_levels": [
+      [
+        100.0,
+        50.0
+      ],
+      [
+        300.0,
+        50.0
+      ]
+    ],
+    "mev_protection": "SECURE",
+    "slippage_tolerance": 5.0,
+    "requires_approval": true,
+    "go_nogo_criteria": {
+      "consecutive_days": 7.0,
+      "win_rate": 0.4,
+      "max_drawdown": 0.2
+    }
+  },
+  "transition_log": [
+    {
+      "from": "observe",
+      "to": "simulate",
+      "timestamp": "2026-07-03T08:41:54+00:00",
+      "reason": "Phase 2 dry-run pipeline verified; execution success 100%, no circuit breaker triggers, daily loss within limits. Proceeding to simulation stage."
+    },
+    {
+      "from": "simulate",
+      "to": "mini_real",
+      "timestamp": "2026-07-03T10:27:26.782821+00:00",
+      "reason": "Phase 2 dry-run pipeline verified; execution success 100%, no circuit breaker triggers, daily loss within limits. Proceeding to simulation stage."
+    }
+  ]
+}

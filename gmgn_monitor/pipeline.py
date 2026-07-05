@@ -10,7 +10,6 @@ from .file_io import atomic_write_text
 from .outcomes import apply_reviews, load_reviews, write_jsonl as write_events_jsonl
 from .replay import replay
 from .report import build_markdown_report
-from .sources import JsonlCandidateSource
 from .telegram_dry_run import build_messages
 from .trade_plan import build_trade_plans, load_risk_limits, write_json
 

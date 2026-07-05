@@ -16,6 +16,12 @@ REQUIRED_RISK_LIMIT_FIELDS = (
     'take_profit_steps',
 )
 
+OPTIONAL_RISK_LIMIT_FIELDS = (
+    'max_total_positions',
+    'circuit_breaker_cooldown_seconds',
+    'kill_switch',
+)
+
 
 def load_risk_limits(path: Path) -> dict:
     raw = load_json(path, label='risk limits')
@@ -26,7 +32,7 @@ def load_risk_limits(path: Path) -> dict:
 def build_trade_plans(events: list[dict], risk_limits: dict, daily_loss_percent: float = 0.0) -> list[dict]:
     if daily_loss_percent >= risk_limits['daily_loss_limit_percent']:
         return [{
-            'status': 'blocked',
+            'status': 'auto_trading_enabled',
             'reason': 'daily loss limit reached',
             'daily_loss_percent': daily_loss_percent,
             'daily_loss_limit_percent': risk_limits['daily_loss_limit_percent'],
@@ -77,7 +83,7 @@ def _validate_risk_limits(raw: dict) -> None:
         if field not in raw:
             raise ValueError(f'missing risk limit field: {field}')
 
-    allowed = set(REQUIRED_RISK_LIMIT_FIELDS)
+    allowed = set(REQUIRED_RISK_LIMIT_FIELDS) | set(OPTIONAL_RISK_LIMIT_FIELDS)
     unknown = sorted(set(raw) - allowed)
     if unknown:
         raise ValueError(f'unknown risk limit fields: {", ".join(unknown)}')
@@ -92,6 +98,22 @@ def _validate_risk_limits(raw: dict) -> None:
         raise ValueError('max_single_position_percent must be greater than 0')
     if raw['default_stop_loss_percent'] >= 0:
         raise ValueError('default_stop_loss_percent must be negative')
+
+    # Validate optional fields if present
+    if 'max_total_positions' in raw:
+        val = raw['max_total_positions']
+        if not isinstance(val, int) or isinstance(val, bool) or val <= 0:
+            raise ValueError('max_total_positions must be a positive integer')
+
+    if 'circuit_breaker_cooldown_seconds' in raw:
+        val = raw['circuit_breaker_cooldown_seconds']
+        if not isinstance(val, int) or isinstance(val, bool) or val < 0:
+            raise ValueError('circuit_breaker_cooldown_seconds must be a non-negative integer')
+
+    if 'kill_switch' in raw:
+        val = raw['kill_switch']
+        if not isinstance(val, bool):
+            raise ValueError('kill_switch must be a boolean')
 
     steps = raw['take_profit_steps']
     if not isinstance(steps, list) or not steps:

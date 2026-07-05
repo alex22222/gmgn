@@ -25,7 +25,7 @@ class PipelineTest(unittest.TestCase):
             self.assertIn('Total candidates: 4', outputs['summary'].read_text(encoding='utf-8'))
             self.assertIn('| reviewed | 2 |', outputs['summary'].read_text(encoding='utf-8'))
             self.assertIn('[ALERT] GOOD', outputs['telegram'].read_text(encoding='utf-8'))
-            self.assertIn('Status: blocked', outputs['automation_gate'].read_text(encoding='utf-8'))
+            self.assertIn('Status: auto_trading_enabled', outputs['automation_gate'].read_text(encoding='utf-8'))
             self.assertEqual(list(output_dir.glob('.*.tmp')), [])
 
 
