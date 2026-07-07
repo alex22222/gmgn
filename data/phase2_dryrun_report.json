@@ -1,0 +1,69 @@
+{
+  "timestamp": "2026-07-05T01:17:39.009230+00:00",
+  "best_config": {
+    "weights": {
+      "wallet": 0.25,
+      "token_risk": 0.2,
+      "market_condition": 0.15,
+      "account_state": 0.2,
+      "time_momentum": 0.2
+    },
+    "min_wallet_score": 50.0,
+    "tp_orders": [
+      [
+        100.0,
+        50.0
+      ],
+      [
+        300.0,
+        50.0
+      ]
+    ],
+    "sl_trigger": -65.0
+  },
+  "best_result": {
+    "win_rate": 1.0,
+    "total_pnl": 3.3379,
+    "sharpe_ratio": 4.4666,
+    "max_drawdown": 0.0979,
+    "wins": 5,
+    "losses": 0,
+    "total_trades": 5,
+    "weights": {
+      "wallet": 0.25,
+      "token_risk": 0.2,
+      "market_condition": 0.15,
+      "account_state": 0.2,
+      "time_momentum": 0.2
+    },
+    "min_wallet_score": 50.0,
+    "tp_orders": [
+      {
+        "level": 1,
+        "trigger_percent": 100.0,
+        "sell_percent": 50.0
+      },
+      {
+        "level": 2,
+        "trigger_percent": 300.0,
+        "sell_percent": 50.0
+      }
+    ],
+    "sl_trigger": -65.0
+  },
+  "go_checks": {
+    "signal_accuracy": true,
+    "execution_success": true,
+    "daily_loss": true
+  },
+  "failed_criteria": [],
+  "assessment": "Go",
+  "total_wallets": 200,
+  "tokens_used": [
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "So11111111111111111111111111111111111111112",
+    "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+    "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+  ]
+}

@@ -134,17 +134,31 @@ class RealWalletFetcher:
                     return [item for item in value if isinstance(item, dict)]
         return []
 
-    def fetch_token_top_traders(self, token_address: str, limit: int = 50) -> list[dict[str, Any]]:
+    def fetch_token_top_traders(
+        self,
+        token_address: str,
+        limit: int = 50,
+        tag: str | None = None,
+        order_by: str | None = None,
+        direction: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Fetch top traders for a token as secondary leader candidates."""
         if self._client is None:
             if not self._mock_fallback:
                 raise RuntimeError("No API key configured and mock_fallback is disabled")
             return []
 
+        extra: dict[str, Any] = {'limit': limit}
+        if tag:
+            extra['tag'] = tag
+        if order_by:
+            extra['order_by'] = order_by
+        if direction:
+            extra['direction'] = direction
         data = self._client.get_token_top_traders(
             chain=self._chain,
             token_address=token_address,
-            limit=limit,
+            **extra,
         )
         data = self._unwrap_data(data)
         if isinstance(data, list):

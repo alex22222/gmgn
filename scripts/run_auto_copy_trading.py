@@ -101,6 +101,33 @@ def _local_position_tokens(portfolio: PortfolioTracker) -> set[str]:
     return {position.token_address for position in portfolio.list_positions()}
 
 
+def _clone_portfolio(portfolio: PortfolioTracker) -> PortfolioTracker:
+    snapshot = portfolio.get_snapshot()
+    entry_cost = sum(
+        position.entry_price_sol * position.quantity
+        for position in snapshot.positions
+    )
+    clone = PortfolioTracker(initial_balance_sol=snapshot.available_sol + entry_cost)
+    for position in snapshot.positions:
+        clone.open_position(
+            position.token_address,
+            entry_price_sol=position.entry_price_sol,
+            quantity=position.quantity,
+            entry_time=position.entry_time,
+        )
+        clone.update_price(position.token_address, position.current_price_sol)
+    return clone
+
+
+def _sync_buy_executor_portfolio(components: dict[str, Any]) -> None:
+    buy_executor = components.get("buy_executor")
+    portfolio = components.get("portfolio")
+    if buy_executor is None or portfolio is None:
+        return
+    if hasattr(buy_executor, "_portfolio"):
+        buy_executor._portfolio = _clone_portfolio(portfolio)
+
+
 def _clear_local_position(
     portfolio: PortfolioTracker,
     sell_trigger: SellTrigger | None,
@@ -487,6 +514,10 @@ def _run_cycle(components: dict[str, Any], signals: list[TradeSignal]) -> dict[s
     copy_sell_handler = components["copy_sell_handler"]
     portfolio = components["portfolio"]
     wallet_scores = components["wallet_scores"]
+
+    # The buy executor performs its own final risk check. Keep its view aligned
+    # with the shared portfolio before the loop adds tentative positions.
+    _sync_buy_executor_portfolio(components)
 
     # Step 1: signal filtering and decision-making
     result = loop.run_cycle(signals, wallet_scores)

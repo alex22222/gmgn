@@ -261,6 +261,7 @@ def backtest_leaders(
     candidates = _dedupe_scored_records(
         _read_json_list(root / 'data' / 'whitelist_wallets.json')
         + _read_json_list(root / 'data' / 'watchlist_wallets.json')
+        + _read_json_list(root / 'data' / 'blacklist_wallets.json')
         + configured_wallets
     )
     selected = sorted(
@@ -321,7 +322,8 @@ def _candidate_priority_key(candidate: dict[str, Any]) -> tuple[float, float, fl
         'gmgn_track_smartmoney': 5.0,
         'gmgn_smartmoney': 4.0,
         'gmgn_track_kol': 3.0,
-        'gmgn_market_signal_12': 2.0,
+        'gmgn_token_smart_degen_traders': 2.0,
+        'gmgn_market_signal_12': 1.5,
         'gmgn_token_top_traders': 1.0,
     }.get(source, 0.0)
     tags = candidate.get('tags')
@@ -784,6 +786,36 @@ def _discover_from_token_top_traders(
         token_address = _token_address(token)
         if not token_address:
             continue
+        try:
+            smart_traders = fetcher.fetch_token_top_traders(
+                token_address,
+                limit=50,
+                tag='smart_degen',
+                order_by='profit',
+                direction='desc',
+            )
+        except TypeError:
+            smart_traders = []
+        if smart_traders:
+            smart_addresses = map_token_top_traders_to_wallet_addresses({'data': smart_traders})
+            smart_wallet_records = [
+                {
+                    'wallet_address': address,
+                    'token_address': token_address,
+                    'rank': index + 1,
+                    'tags': ['smart_degen', 'token_profit'],
+                }
+                for index, address in enumerate(smart_addresses)
+            ]
+            added += _merge_wallet_candidates(
+                current_by_address,
+                smart_wallet_records,
+                chain=chain,
+                source='gmgn_token_smart_degen_traders',
+                discovered_at=discovered_at,
+            )
+        if len(current_by_address) >= target:
+            break
         traders = fetcher.fetch_token_top_traders(token_address, limit=50)
         addresses = map_token_top_traders_to_wallet_addresses({'data': traders})
         wallet_records = [

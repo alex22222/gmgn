@@ -1,0 +1,461 @@
+[
+  {
+    "wallet_address": "2P1S6LwnfYVhkR5vzV98VZNWw4CFkRrSbFfRP2t3JYwH",
+    "address": "2P1S6LwnfYVhkR5vzV98VZNWw4CFkRrSbFfRP2t3JYwH",
+    "chain": "sol",
+    "source": "gmgn_token_top_traders",
+    "total_score": 85.4,
+    "grade": "A",
+    "decision": "copy",
+    "score_reasons": [
+      "profitability score 100 is excellent",
+      "win_rate score 100 is excellent",
+      "risk_control score 40 is moderate",
+      "consistency score 100 is excellent",
+      "activity score 86 is excellent",
+      "stability score 88 is excellent"
+    ],
+    "filter_decision": "pass",
+    "filter_score": 85,
+    "filter_reasons": [
+      "new wallet 0d (-10)",
+      "low stop-loss discipline 0.0% (-5)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 0.0,
+    "stats": {
+      "period": "7d",
+      "realized_profit": 35843.44,
+      "winrate": 100.0,
+      "total_trades": 91,
+      "trades_7d": 91,
+      "trades_30d": 91,
+      "avg_holding_hours": 115.85
+    },
+    "window_stats": {
+      "7d": {
+        "period": "7d",
+        "realized_profit": 35843.44,
+        "winrate": 100.0,
+        "total_trades": 91,
+        "trades_7d": 91,
+        "trades_30d": 91,
+        "avg_holding_hours": 115.85
+      }
+    },
+    "dimension_scores": {
+      "profitability": 100.0,
+      "win_rate": 100.0,
+      "risk_control": 40.0,
+      "consistency": 100.0,
+      "activity": 86.0,
+      "stability": 88.0
+    },
+    "scored_at": "2026-07-05T14:47:13.886871+00:00"
+  },
+  {
+    "wallet_address": "HCgo8gvk99Wk13XWbbAoyxyEx2DgzidzVDma4ny32uYC",
+    "address": "HCgo8gvk99Wk13XWbbAoyxyEx2DgzidzVDma4ny32uYC",
+    "chain": "sol",
+    "source": "gmgn_token_top_traders",
+    "total_score": 83.37,
+    "grade": "A",
+    "decision": "copy",
+    "score_reasons": [
+      "profitability score 100 is excellent",
+      "win_rate score 100 is excellent",
+      "risk_control score 40 is moderate",
+      "consistency score 100 is excellent",
+      "activity score 66 is good",
+      "stability score 88 is excellent"
+    ],
+    "filter_decision": "pass",
+    "filter_score": 85,
+    "filter_reasons": [
+      "new wallet 0d (-10)",
+      "low stop-loss discipline 0.0% (-5)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 0.0,
+    "stats": {
+      "period": "7d",
+      "realized_profit": 89010.99,
+      "winrate": 100.0,
+      "total_trades": 56,
+      "trades_7d": 56,
+      "trades_30d": 56,
+      "avg_holding_hours": 91.53
+    },
+    "window_stats": {
+      "7d": {
+        "period": "7d",
+        "realized_profit": 89010.99,
+        "winrate": 100.0,
+        "total_trades": 56,
+        "trades_7d": 56,
+        "trades_30d": 56,
+        "avg_holding_hours": 91.53
+      }
+    },
+    "dimension_scores": {
+      "profitability": 100.0,
+      "win_rate": 100.0,
+      "risk_control": 40.0,
+      "consistency": 100.0,
+      "activity": 65.73,
+      "stability": 88.0
+    },
+    "scored_at": "2026-07-05T14:47:36.331993+00:00"
+  },
+  {
+    "wallet_address": "BJG9c35ArqMKB2okGQGS2yg43WchTAp4EMTjY26cUY1c",
+    "address": "BJG9c35ArqMKB2okGQGS2yg43WchTAp4EMTjY26cUY1c",
+    "chain": "sol",
+    "source": "gmgn_track_smartmoney",
+    "total_score": 77.25,
+    "grade": "B",
+    "decision": "watch",
+    "score_reasons": [
+      "profitability score 88 is excellent",
+      "win_rate score 100 is excellent",
+      "risk_control score 40 is moderate",
+      "consistency score 79 is good",
+      "activity score 66 is good",
+      "stability score 88 is excellent"
+    ],
+    "filter_decision": "watch",
+    "filter_score": 75,
+    "filter_reasons": [
+      "high frequency 199 trades/7d (-10)",
+      "new wallet 0d (-10)",
+      "low stop-loss discipline 0.0% (-5)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 0.0,
+    "stats": {
+      "period": "7d",
+      "realized_profit": 20701.36,
+      "winrate": 78.95,
+      "total_trades": 199,
+      "trades_7d": 199,
+      "trades_30d": 199,
+      "avg_holding_hours": 201.72
+    },
+    "window_stats": {
+      "7d": {
+        "period": "7d",
+        "realized_profit": 20701.36,
+        "winrate": 78.95,
+        "total_trades": 199,
+        "trades_7d": 199,
+        "trades_30d": 199,
+        "avg_holding_hours": 201.72
+      }
+    },
+    "dimension_scores": {
+      "profitability": 88.0,
+      "win_rate": 100.0,
+      "risk_control": 40.0,
+      "consistency": 79.0,
+      "activity": 66.0,
+      "stability": 88.0
+    },
+    "scored_at": "2026-07-05T14:27:34.816421+00:00"
+  },
+  {
+    "wallet_address": "4FcpobdBuXZLCiYKhm9nmzhiguFjzqe6eGQ7kanqoDFE",
+    "address": "4FcpobdBuXZLCiYKhm9nmzhiguFjzqe6eGQ7kanqoDFE",
+    "chain": "sol",
+    "source": "gmgn_token_smart_degen_traders",
+    "total_score": 72.27,
+    "grade": "B",
+    "decision": "watch",
+    "score_reasons": [
+      "profitability score 66 is good",
+      "win_rate score 100 is excellent",
+      "risk_control score 40 is moderate",
+      "consistency score 86 is excellent",
+      "activity score 60 is good",
+      "stability score 88 is excellent"
+    ],
+    "filter_decision": "watch",
+    "filter_score": 75,
+    "filter_reasons": [
+      "high frequency 110 trades/7d (-10)",
+      "new wallet 0d (-10)",
+      "low stop-loss discipline 0.0% (-5)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 0.0,
+    "stats": {
+      "period": "7d",
+      "realized_profit": 1261.73,
+      "winrate": 88.24,
+      "total_trades": 110,
+      "trades_7d": 110,
+      "trades_30d": 110,
+      "avg_holding_hours": 95.5
+    },
+    "window_stats": {
+      "7d": {
+        "period": "7d",
+        "realized_profit": 1261.73,
+        "winrate": 88.24,
+        "total_trades": 110,
+        "trades_7d": 110,
+        "trades_30d": 110,
+        "avg_holding_hours": 95.5
+      }
+    },
+    "dimension_scores": {
+      "profitability": 66.29,
+      "win_rate": 100.0,
+      "risk_control": 40.0,
+      "consistency": 86.0,
+      "activity": 60.0,
+      "stability": 88.0
+    },
+    "scored_at": "2026-07-05T14:29:56.904402+00:00"
+  },
+  {
+    "wallet_address": "3kfyzegbWkgAdLWtywmGcLFcUw2RPzt3i1EEzdXYtYM8",
+    "address": "3kfyzegbWkgAdLWtywmGcLFcUw2RPzt3i1EEzdXYtYM8",
+    "chain": "sol",
+    "source": "gmgn_token_top_traders",
+    "total_score": 72.1,
+    "grade": "B",
+    "decision": "watch",
+    "score_reasons": [
+      "profitability score 86 is excellent",
+      "win_rate score 85 is excellent",
+      "risk_control score 40 is moderate",
+      "consistency score 72 is good",
+      "activity score 60 is good",
+      "stability score 88 is excellent"
+    ],
+    "filter_decision": "watch",
+    "filter_score": 75,
+    "filter_reasons": [
+      "high frequency 142 trades/7d (-10)",
+      "new wallet 0d (-10)",
+      "low stop-loss discipline 0.0% (-5)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 0.0,
+    "stats": {
+      "period": "7d",
+      "realized_profit": 510010.79,
+      "winrate": 66.67,
+      "total_trades": 142,
+      "trades_7d": 142,
+      "trades_30d": 142,
+      "avg_holding_hours": 23.79
+    },
+    "window_stats": {
+      "7d": {
+        "period": "7d",
+        "realized_profit": 510010.79,
+        "winrate": 66.67,
+        "total_trades": 142,
+        "trades_7d": 142,
+        "trades_30d": 142,
+        "avg_holding_hours": 23.79
+      }
+    },
+    "dimension_scores": {
+      "profitability": 86.0,
+      "win_rate": 85.0,
+      "risk_control": 40.0,
+      "consistency": 72.0,
+      "activity": 60.0,
+      "stability": 88.0
+    },
+    "scored_at": "2026-07-05T14:47:13.887678+00:00"
+  },
+  {
+    "wallet_address": "4qyYcBA8tizD2MQCcHkXwrdFowZihKwdcFL6PExShVvL",
+    "address": "4qyYcBA8tizD2MQCcHkXwrdFowZihKwdcFL6PExShVvL",
+    "chain": "sol",
+    "source": "gmgn_token_smart_degen_traders",
+    "total_score": 67.3,
+    "grade": "C",
+    "decision": "observe",
+    "score_reasons": [
+      "profitability score 59 is moderate",
+      "win_rate score 85 is excellent",
+      "risk_control score 40 is moderate",
+      "consistency score 79 is good",
+      "activity score 70 is good",
+      "stability score 88 is excellent"
+    ],
+    "filter_decision": "watch",
+    "filter_score": 75,
+    "filter_reasons": [
+      "high frequency 244 trades/7d (-10)",
+      "new wallet 0d (-10)",
+      "low stop-loss discipline 0.0% (-5)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 10.0,
+    "stats": {
+      "period": "7d",
+      "realized_profit": 3157.01,
+      "winrate": 66.67,
+      "total_trades": 244,
+      "trades_7d": 244,
+      "trades_30d": 244,
+      "avg_holding_hours": 328.35
+    },
+    "window_stats": {
+      "7d": {
+        "period": "7d",
+        "realized_profit": 3157.01,
+        "winrate": 66.67,
+        "total_trades": 244,
+        "trades_7d": 244,
+        "trades_30d": 244,
+        "avg_holding_hours": 328.35
+      }
+    },
+    "dimension_scores": {
+      "profitability": 58.59,
+      "win_rate": 85.0,
+      "risk_control": 40.0,
+      "consistency": 79.0,
+      "activity": 70.0,
+      "stability": 88.0
+    },
+    "scored_at": "2026-07-05T14:29:47.543685+00:00"
+  },
+  {
+    "wallet_address": "DytMWmgaVBQrytfWqCp7oCUheuf7hnAhq3U1bA6Bujsz",
+    "total_score": 66.56,
+    "grade": "C",
+    "decision": "observe",
+    "score_reasons": [
+      "profitability score 36 is weak",
+      "win_rate score 85 is excellent",
+      "risk_control score 76 is good",
+      "consistency score 79 is good",
+      "activity score 64 is good",
+      "stability score 72 is good"
+    ],
+    "filter_decision": "pass",
+    "filter_score": 82,
+    "filter_reasons": [
+      "high frequency 249 trades/7d (-10)",
+      "low diversification 0.18 (-8)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 10.0,
+    "tags": [
+      "smart_degen"
+    ],
+    "volume_usd": 27968.02,
+    "trades_snapshot": 249,
+    "stats": {
+      "total_trades": 249,
+      "realized_profit": 1451.7509117666184,
+      "winrate": 64.0,
+      "token_num": 45,
+      "avg_holding_hours": 38.460443121693125,
+      "wallet_age_days": 54.768368055555555
+    },
+    "dimension_scores": {
+      "profitability": 35.63,
+      "win_rate": 85.0,
+      "risk_control": 76.0,
+      "consistency": 79.0,
+      "activity": 64.0,
+      "stability": 72.0
+    }
+  },
+  {
+    "wallet_address": "En1eeXNnXm7d28FRgG4URGQQBSDvBxN3us1VJhhV1Rgu",
+    "total_score": 58.78,
+    "grade": "D",
+    "decision": "observe",
+    "score_reasons": [
+      "profitability score 25 is weak",
+      "win_rate score 65 is good",
+      "risk_control score 76 is good",
+      "consistency score 79 is good",
+      "activity score 43 is moderate",
+      "stability score 82 is excellent"
+    ],
+    "filter_decision": "pass",
+    "filter_score": 82,
+    "filter_reasons": [
+      "high frequency 385 trades/7d (-10)",
+      "low diversification 0.27 (-8)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 20.0,
+    "tags": [
+      "smart_degen",
+      "axiom"
+    ],
+    "volume_usd": 17254.31,
+    "trades_snapshot": 385,
+    "stats": {
+      "total_trades": 385,
+      "realized_profit": 1231.6381787073265,
+      "winrate": 56.00000000000001,
+      "token_num": 104,
+      "avg_holding_hours": 42.67060363247863,
+      "wallet_age_days": 275.9444907407407
+    },
+    "dimension_scores": {
+      "profitability": 25.0,
+      "win_rate": 65.0,
+      "risk_control": 76.0,
+      "consistency": 79.0,
+      "activity": 42.79,
+      "stability": 82.0
+    }
+  },
+  {
+    "wallet_address": "7cVyqNK6fEq6EGAw1UoyKLy8ni84BanEKkdfj5FvZQBh",
+    "total_score": 53.4,
+    "grade": "D",
+    "decision": "watch",
+    "score_reasons": [
+      "profitability score 80 is excellent",
+      "win_rate score 85 is excellent",
+      "risk_control score 76 is good",
+      "consistency score 45 is moderate",
+      "activity score 100 is excellent",
+      "stability score 73 is good"
+    ],
+    "filter_decision": "pass",
+    "filter_score": 82,
+    "filter_reasons": [
+      "high frequency 284 trades/7d (-10)",
+      "short holding time 0.81h (-8)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 10.0,
+    "tags": [
+      "padre",
+      "smart_degen"
+    ],
+    "volume_usd": 228.11,
+    "trades_snapshot": 2,
+    "stats": {
+      "total_trades": 284,
+      "realized_profit": 1377.42728369854,
+      "winrate": 60.36036036036037,
+      "token_num": 112,
+      "avg_holding_hours": 0.8117633928571428,
+      "wallet_age_days": 249
+    },
+    "dimension_scores": {
+      "profitability": 80.0,
+      "win_rate": 85.0,
+      "risk_control": 76.0,
+      "consistency": 45.22,
+      "activity": 100.0,
+      "stability": 73.0
+    }
+  }
+]

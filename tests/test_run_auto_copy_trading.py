@@ -86,6 +86,52 @@ def test_add_skip_aggregates_reasons():
     }
 
 
+def test_sync_buy_executor_portfolio_drops_stale_internal_positions():
+    module = _load_script_module()
+    shared_portfolio = PortfolioTracker(initial_balance_sol=10.0)
+    stale_portfolio = PortfolioTracker(initial_balance_sol=10.0)
+    stale_portfolio.open_position("OldToken1", entry_price_sol=1.0, quantity=1.0)
+    stale_portfolio.open_position("OldToken2", entry_price_sol=1.0, quantity=1.0)
+    stale_portfolio.open_position("OldToken3", entry_price_sol=1.0, quantity=1.0)
+
+    class BuyExecutor:
+        _portfolio = stale_portfolio
+
+    components = {
+        "portfolio": shared_portfolio,
+        "buy_executor": BuyExecutor(),
+    }
+
+    module._sync_buy_executor_portfolio(components)
+
+    assert components["buy_executor"]._portfolio is not shared_portfolio
+    assert components["buy_executor"]._portfolio.list_positions() == []
+    assert shared_portfolio.list_positions() == []
+
+
+def test_sync_buy_executor_portfolio_preserves_shared_positions():
+    module = _load_script_module()
+    shared_portfolio = PortfolioTracker(initial_balance_sol=10.0)
+    shared_portfolio.open_position("CurrentToken", entry_price_sol=1.0, quantity=2.0)
+    shared_portfolio.update_price("CurrentToken", 1.5)
+
+    class BuyExecutor:
+        _portfolio = PortfolioTracker(initial_balance_sol=10.0)
+
+    components = {
+        "portfolio": shared_portfolio,
+        "buy_executor": BuyExecutor(),
+    }
+
+    module._sync_buy_executor_portfolio(components)
+
+    cloned_position = components["buy_executor"]._portfolio.get_position("CurrentToken")
+    assert cloned_position is not None
+    assert cloned_position.quantity == 2.0
+    assert cloned_position.current_price_sol == 1.5
+    assert components["buy_executor"]._portfolio.get_snapshot().total_value_sol == 11.0
+
+
 def test_refresh_follow_config_reloads_current_whitelist(tmp_path):
     module = _load_script_module()
     whitelist_path = tmp_path / "wallet_whitelist.json"

@@ -99,6 +99,27 @@ class TestMapWalletStatsToFeatures:
         assert features["portfolio_metrics"]["diversification_index"] == 0.5
         assert features["behavior_flags"]["mev_attacker"] is False
 
+    def test_maps_raw_gmgn_wallet_stats_shape(self) -> None:
+        stats = {
+            "wallet_address": "raw-wallet",
+            "realized_profit": "49066.0315",
+            "buy": 851,
+            "sell": 1371,
+            "pnl_stat": {
+                "winrate": 0.4199134199,
+                "avg_holding_period": 32759.8893,
+            },
+        }
+        features = map_wallet_stats_to_features(stats)
+
+        assert features["wallet_address"] == "raw-wallet"
+        assert features["total_transactions"] == 2222
+        assert features["trades_7d"] == 2222
+        assert features["trades_30d"] == 2222
+        assert features["win_rate_percent"] == pytest.approx(41.99, rel=1e-3)
+        assert features["total_profit_usd"] == pytest.approx(49066.03, rel=1e-4)
+        assert features["avg_holding_hours"] == pytest.approx(9.1, rel=1e-2)
+
     def test_total_transactions_fallback_logic(self) -> None:
         # total_trades > 0 takes precedence
         stats = {"total_trades": 100, "trades_30d": 0}
@@ -286,6 +307,15 @@ class TestMapTokenTopTradersToWalletAddresses:
         }
         addresses = map_token_top_traders_to_wallet_addresses(response)
         assert addresses == ["trader4"]
+
+    def test_prefers_wallet_stats_address_over_account_address(self) -> None:
+        response = {
+            "data": [
+                {"address": "wallet-stats-address", "account_address": "token-account-address"},
+            ]
+        }
+        addresses = map_token_top_traders_to_wallet_addresses(response)
+        assert addresses == ["wallet-stats-address"]
 
     def test_empty_data(self) -> None:
         response = {"code": 0, "data": [], "message": ""}

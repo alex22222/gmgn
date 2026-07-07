@@ -1,0 +1,9 @@
+{
+  "action": "backtest",
+  "ok": true,
+  "message": "评分回测完成：7/10 通过。",
+  "generated_at": "2026-07-05T14:48:24.531061+00:00",
+  "backtested": 10,
+  "passed": 7,
+  "target": 10
+}

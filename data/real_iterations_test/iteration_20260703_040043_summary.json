@@ -1,0 +1,13 @@
+{
+  "report_path": "data/real_iterations_test/iteration_20260703_040043_report.md",
+  "whitelist_path": "data/real_iterations_test/iteration_20260703_040043_whitelist.json",
+  "summary_path": "data/real_iterations_test/iteration_20260703_040043_summary.json",
+  "total_wallets": 10,
+  "whitelist_count": 5,
+  "backtest_count": 3,
+  "positive_ratio": 1.0,
+  "avg_sharpe": 0.7533333333333334,
+  "avg_drawdown": -58.52333333333333,
+  "loop_healthy": 5,
+  "go_decision": false
+}

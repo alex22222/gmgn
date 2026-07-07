@@ -201,6 +201,32 @@ class TestRealWalletFetcherWithMockClient:
         assert trades == [{"maker": "kol1", "side": "buy"}]
         mock_client.get_kol.assert_called_once_with(chain="sol", limit=10, side="buy")
 
+    def test_fetch_token_top_traders_accepts_tag_and_sort(self) -> None:
+        mock_client = MagicMock()
+        mock_client.get_token_top_traders.return_value = {
+            "list": [{"wallet_address": "smart1"}]
+        }
+        fetcher = RealWalletFetcher(api_key="real-key", chain="sol")
+        fetcher._client = mock_client
+
+        traders = fetcher.fetch_token_top_traders(
+            "Token111",
+            limit=20,
+            tag="smart_degen",
+            order_by="profit",
+            direction="desc",
+        )
+
+        assert traders == [{"wallet_address": "smart1"}]
+        mock_client.get_token_top_traders.assert_called_once_with(
+            chain="sol",
+            token_address="Token111",
+            limit=20,
+            tag="smart_degen",
+            order_by="profit",
+            direction="desc",
+        )
+
     def test_fetch_market_signal_wallets_extracts_smart_degen_wallets(self) -> None:
         mock_client = MagicMock()
         mock_client.get_token_signals.return_value = [{

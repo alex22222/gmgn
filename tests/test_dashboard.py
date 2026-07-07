@@ -23,6 +23,8 @@ from gmgn_monitor.dashboard import (
     _read_automation_gate_state,
     _read_copy_trading_config,
     _run_auto_stop_loss_once,
+    _run_whitelist_score_refresh_once,
+    _start_whitelist_score_monitor,
     _liquidate_leader_positions,
     _promote_single_leader_to_copy_whitelist,
     _recycle_scored_leader_to_candidates,
@@ -69,7 +71,10 @@ class FakeLeaderFetcher:
     def fetch_trending_tokens(self, interval='24h', limit=20):
         return self.trending_tokens[:limit]
 
-    def fetch_token_top_traders(self, token_address, limit=50):
+    def fetch_token_top_traders(self, token_address, limit=50, tag=None, order_by=None, direction=None):
+        tagged_key = (token_address, tag, order_by, direction)
+        if tag:
+            return self.token_traders.get(tagged_key, [])[:limit]
         return self.token_traders.get(token_address, [])[:limit]
 
     def fetch_smartmoney_trades(self, limit=200, side='buy'):
@@ -473,6 +478,51 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(report['interval_seconds'], 10800)
         self.assertEqual(report['low_score_count'], 1)
 
+    def test_whitelist_score_refresh_once_writes_report_without_page_access(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / 'config').mkdir()
+            (root / 'config/wallet_whitelist.json').write_text(json.dumps({
+                'wallets': [
+                    {'wallet_address': 'LeaderHigh', 'total_score': 76.0, 'grade': 'B'},
+                    {'wallet_address': 'LeaderLow', 'total_score': 53.4, 'grade': 'D'},
+                ],
+            }), encoding='utf-8')
+
+            result = _run_whitelist_score_refresh_once(root)
+            report = json.loads((root / 'data/whitelist_score_report.json').read_text(encoding='utf-8'))
+
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['wallet_count'], 2)
+        self.assertEqual(result['low_score_count'], 1)
+        self.assertEqual(report['interval_seconds'], 10800)
+
+    def test_whitelist_score_monitor_runs_in_background_and_logs(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / 'config').mkdir()
+            (root / 'config/wallet_whitelist.json').write_text(json.dumps({
+                'wallets': [
+                    {'wallet_address': 'LeaderHigh', 'total_score': 76.0, 'grade': 'B'},
+                ],
+            }), encoding='utf-8')
+            stop_event = threading.Event()
+
+            with patch('gmgn_monitor.dashboard._WHITELIST_SCORE_INTERVAL_SECONDS', 0.01):
+                thread = _start_whitelist_score_monitor(root, stop_event)
+                log_path = root / 'data/trading_log.jsonl'
+                for _ in range(100):
+                    if log_path.exists() and 'whitelist_score_refresh' in log_path.read_text(encoding='utf-8'):
+                        break
+                    threading.Event().wait(0.01)
+                stop_event.set()
+                thread.join(timeout=1)
+
+            log_content = log_path.read_text(encoding='utf-8')
+
+        self.assertIn('whitelist_score_refresh', log_content)
+        self.assertFalse(thread.is_alive())
+
     def test_copy_trading_config_auto_weights_active_leaders_and_zeroes_paused(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -536,20 +586,20 @@ class DashboardTest(unittest.TestCase):
                 'lookback_windows': ['7d', '14d', '30d'],
             }), encoding='utf-8')
             (root / 'data/candidate_wallets_smartmoney.json').write_text(json.dumps([
-                {'address': 'LeaderA'},
-                {'address': 'LeaderB'},
-                {'address': 'LeaderC'},
-                {'address': 'LeaderA'},
+                {'address': 'LeaderA', 'source': 'gmgn_token_top_traders'},
+                {'address': 'LeaderB', 'source': 'gmgn_token_top_traders'},
+                {'address': 'LeaderC', 'source': 'gmgn_market_signal_12'},
+                {'address': 'LeaderA', 'source': 'gmgn_token_top_traders'},
             ]), encoding='utf-8')
             (root / 'data/whitelist_wallets.json').write_text(json.dumps([
-                {'wallet_address': 'LeaderA', 'total_score': 70, 'grade': 'B', 'decision': 'copy', 'stats': {'winrate': 65, 'total_trades': 100}},
-                {'wallet_address': 'LeaderLow', 'total_score': 55, 'grade': 'D', 'decision': 'observe', 'stats': {'winrate': 80, 'total_trades': 100}},
+                {'wallet_address': 'LeaderA', 'source': 'gmgn_token_top_traders', 'total_score': 70, 'grade': 'B', 'decision': 'copy', 'stats': {'winrate': 65, 'total_trades': 100}},
+                {'wallet_address': 'LeaderLow', 'source': 'gmgn_token_top_traders', 'total_score': 55, 'grade': 'D', 'decision': 'observe', 'stats': {'winrate': 80, 'total_trades': 100}},
             ]), encoding='utf-8')
             (root / 'data/watchlist_wallets.json').write_text(json.dumps([
-                {'wallet_address': 'LeaderB', 'total_score': 68, 'grade': 'C', 'decision': 'watch', 'stats': {'winrate': 61, 'total_trades': 80}},
+                {'wallet_address': 'LeaderB', 'source': 'gmgn_token_top_traders', 'total_score': 68, 'grade': 'C', 'decision': 'watch', 'stats': {'winrate': 61, 'total_trades': 80}},
             ]), encoding='utf-8')
             (root / 'data/blacklist_wallets.json').write_text(json.dumps([
-                {'wallet_address': 'LeaderRejected', 'total_score': 20, 'grade': 'F'},
+                {'wallet_address': 'LeaderRejected', 'source': 'gmgn_market_signal_12', 'total_score': 20, 'grade': 'F'},
             ]), encoding='utf-8')
             (root / 'config/wallet_whitelist.json').write_text(json.dumps({
                 'wallets': [{'wallet_address': 'LeaderA'}],
@@ -584,8 +634,14 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(state['funnel_lists']['scored_whitelist'][0]['wallet_address'], 'LeaderA')
         self.assertEqual(state['funnel_lists']['copy_whitelist'][0]['wallet_address'], 'LeaderA')
         self.assertTrue(state['funnel_lists']['scored_whitelist'][0]['in_copy_whitelist'])
-        self.assertEqual(state['copy_whitelist_limit'], 5)
+        self.assertEqual(state['copy_whitelist_limit'], 10)
         self.assertEqual(state['backtest']['count'], 2)
+        source_quality = {item['source']: item for item in state['source_quality']}
+        self.assertEqual(source_quality['gmgn_token_top_traders']['candidates'], 2)
+        self.assertEqual(source_quality['gmgn_token_top_traders']['scored'], 3)
+        self.assertEqual(source_quality['gmgn_token_top_traders']['high_quality'], 2)
+        self.assertEqual(source_quality['gmgn_token_top_traders']['near_quality'], 1)
+        self.assertEqual(source_quality['gmgn_market_signal_12']['rejected'], 1)
         self.assertEqual(
             {item['wallet_address'] for item in state['backtest']['leaders']},
             {'LeaderA', 'LeaderB'},
@@ -660,6 +716,32 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(result['secondary_added'], 2)
         self.assertEqual(len(saved), 3)
         self.assertEqual(saved[-1]['source'], 'gmgn_token_top_traders')
+
+    def test_discover_leaders_uses_token_smart_degen_traders_before_plain_top_traders(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / 'data').mkdir()
+            (root / 'data/candidate_wallets_smartmoney.json').write_text(json.dumps([
+                {'address': 'LeaderA'},
+            ]), encoding='utf-8')
+            fetcher = FakeLeaderFetcher(
+                wallets=[{'wallet_address': 'LeaderA'}],
+                trending_tokens=[{'token_address': 'Token111'}],
+                token_traders={
+                    ('Token111', 'smart_degen', 'profit', 'desc'): [{'wallet_address': 'SmartProfit'}],
+                    'Token111': [{'wallet_address': 'PlainTrader'}],
+                },
+            )
+
+            result = discover_leaders(root, target=3, fetcher=fetcher)
+            saved = json.loads((root / 'data/candidate_wallets_smartmoney.json').read_text(encoding='utf-8'))
+
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['secondary_added'], 2)
+        self.assertEqual(saved[1]['wallet_address'], 'SmartProfit')
+        self.assertEqual(saved[1]['source'], 'gmgn_token_smart_degen_traders')
+        self.assertEqual(saved[1]['tags'], ['smart_degen', 'token_profit'])
+        self.assertEqual(saved[2]['source'], 'gmgn_token_top_traders')
 
     def test_discover_leaders_uses_tracked_smartmoney_before_token_top_traders(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1076,6 +1158,90 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(state['quality_summary']['high_quality_hit_rate_percent'], 0.0)
         self.assertIn('继续扩池', state['next_action']['reason'])
 
+    def test_leader_pool_expands_candidates_when_projected_quality_is_insufficient(self):
+        class FakeConfig:
+            gmgn_api_key = 'file-key'
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / 'config').mkdir()
+            (root / 'data').mkdir()
+            (root / 'config/leader_pool.json').write_text(json.dumps({
+                'discovery_target': 500,
+                'high_quality_target': 40,
+                'whitelist_target': 10,
+                'backtest_target': 10,
+                'min_score': 65,
+                'min_win_rate_percent': 60,
+                'min_total_trades': 50,
+            }), encoding='utf-8')
+            (root / 'data/candidate_wallets_smartmoney.json').write_text(json.dumps([
+                {'address': f'Leader{i}'}
+                for i in range(500)
+            ]), encoding='utf-8')
+            (root / 'data/whitelist_wallets.json').write_text(json.dumps([
+                {'wallet_address': 'Leader0', 'total_score': 70, 'stats': {'winrate': 70, 'total_trades': 100}},
+            ]), encoding='utf-8')
+            (root / 'data/blacklist_wallets.json').write_text(json.dumps([
+                {'wallet_address': f'Leader{i}', 'total_score': 10, 'stats': {'winrate': 20, 'total_trades': 10}}
+                for i in range(1, 100)
+            ]), encoding='utf-8')
+
+            with patch.dict(os.environ, {'GMGN_API_KEY': ''}), \
+                    patch('gmgn_monitor.dashboard.ConfigManager', return_value=FakeConfig()):
+                state = _read_leader_pool_state(root)
+
+        self.assertEqual(state['counts']['scored'], 100)
+        self.assertEqual(state['next_action']['action'], 'discover')
+        self.assertEqual(state['next_action']['target'], 1000)
+        self.assertIn('命中率预计不足', state['next_action']['reason'])
+
+    def test_leader_pool_scores_when_expansion_has_no_new_wallets(self):
+        class FakeConfig:
+            gmgn_api_key = 'file-key'
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / 'config').mkdir()
+            (root / 'data').mkdir()
+            (root / 'config/leader_pool.json').write_text(json.dumps({
+                'discovery_target': 500,
+                'high_quality_target': 40,
+                'whitelist_target': 10,
+                'backtest_target': 10,
+                'min_score': 65,
+                'min_win_rate_percent': 60,
+                'min_total_trades': 50,
+            }), encoding='utf-8')
+            (root / 'data/candidate_wallets_smartmoney.json').write_text(json.dumps([
+                {'address': f'Leader{i}'}
+                for i in range(500)
+            ]), encoding='utf-8')
+            (root / 'data/whitelist_wallets.json').write_text(json.dumps([
+                {'wallet_address': 'Leader0', 'total_score': 70, 'stats': {'winrate': 70, 'total_trades': 100}},
+            ]), encoding='utf-8')
+            (root / 'data/blacklist_wallets.json').write_text(json.dumps([
+                {'wallet_address': f'Leader{i}', 'total_score': 10, 'stats': {'winrate': 20, 'total_trades': 10}}
+                for i in range(1, 100)
+            ]), encoding='utf-8')
+            (root / 'data/leader_pool_last_action.json').write_text(json.dumps({
+                'action': 'loop_once',
+                'ok': True,
+                'selected_action': 'discover',
+                'result': {
+                    'action': 'discover',
+                    'ok': True,
+                    'added': 0,
+                },
+            }), encoding='utf-8')
+
+            with patch.dict(os.environ, {'GMGN_API_KEY': ''}), \
+                    patch('gmgn_monitor.dashboard.ConfigManager', return_value=FakeConfig()):
+                state = _read_leader_pool_state(root)
+
+        self.assertEqual(state['next_action']['action'], 'score')
+        self.assertIn('扩池无新增', state['next_action']['reason'])
+
     def test_promote_leaders_adds_high_quality_wallets_as_paused_observe(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -1110,7 +1276,7 @@ class DashboardTest(unittest.TestCase):
             (root / 'config/wallet_whitelist.json').write_text(json.dumps({
                 'wallets': [
                     {'wallet_address': f'Existing{i}', 'total_score': 80, 'enabled': True}
-                    for i in range(5)
+                    for i in range(10)
                 ],
             }), encoding='utf-8')
             (root / 'data/whitelist_wallets.json').write_text(json.dumps([
@@ -1120,7 +1286,7 @@ class DashboardTest(unittest.TestCase):
             result = _promote_single_leader_to_copy_whitelist(root, {'wallet_address': 'LeaderA'})
 
         self.assertFalse(result['ok'])
-        self.assertIn('最多 5 个', result['error'])
+        self.assertIn('最多 10 个', result['error'])
 
     def test_promote_single_leader_to_copy_whitelist_adds_scored_leader(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1182,6 +1348,9 @@ class DashboardTest(unittest.TestCase):
             (root / 'data/whitelist_wallets.json').write_text(json.dumps([
                 {'wallet_address': 'LeaderA', 'total_score': 75, 'grade': 'B', 'stats': {'winrate': 70, 'total_trades': 100, 'realized_profit': 1200}},
             ]), encoding='utf-8')
+            (root / 'data/blacklist_wallets.json').write_text(json.dumps([
+                {'wallet_address': 'LeaderRejected', 'total_score': 60, 'grade': 'C', 'stats': {'winrate': 75, 'total_trades': 1400, 'realized_profit': 900}},
+            ]), encoding='utf-8')
             (root / 'config/wallet_whitelist.json').write_text(json.dumps({
                 'wallets': [
                     {'wallet_address': 'LeaderConfigured', 'total_score': 80, 'grade': 'A', 'stats_snapshot': {'winrate': 68, 'total_trades': 90, 'realized_profit': 900}},
@@ -1192,9 +1361,9 @@ class DashboardTest(unittest.TestCase):
             saved = json.loads((root / 'data/leader_backtest_results.json').read_text(encoding='utf-8'))
 
         self.assertTrue(result['ok'])
-        self.assertEqual(result['backtested'], 2)
+        self.assertEqual(result['backtested'], 3)
         self.assertEqual(result['passed'], 2)
-        self.assertEqual({item['wallet_address'] for item in saved}, {'LeaderA', 'LeaderConfigured'})
+        self.assertEqual({item['wallet_address'] for item in saved}, {'LeaderA', 'LeaderConfigured', 'LeaderRejected'})
         self.assertTrue(all('backtest_score' in item for item in saved))
 
     def test_run_leader_pool_action_promotes_and_backtests(self):
@@ -1566,6 +1735,9 @@ class DashboardTest(unittest.TestCase):
         self.assertIn("switchLeaderPoolTab('target')", INDEX_HTML)
         self.assertIn("switchLeaderPoolTab('filter')", INDEX_HTML)
         self.assertIn('leaderPoolStages', INDEX_HTML)
+        self.assertIn('leaderSourceQuality', INDEX_HTML)
+        self.assertIn('来源质量诊断', INDEX_HTML)
+        self.assertIn('renderLeaderSourceQuality', INDEX_HTML)
         self.assertIn('leaderPoolConfigForm', INDEX_HTML)
         self.assertIn('saveLeaderPoolConfig', INDEX_HTML)
         self.assertIn('/api/leader-pool/config', INDEX_HTML)

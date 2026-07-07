@@ -19,6 +19,11 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
         return default
     if isinstance(value, (int, float)):
         return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return default
     return default
 
 
@@ -30,6 +35,11 @@ def _safe_int(value: Any, default: int = 0) -> int:
         return value
     if isinstance(value, float):
         return int(value)
+    if isinstance(value, str):
+        try:
+            return int(float(value))
+        except ValueError:
+            return default
     return default
 
 
@@ -58,12 +68,30 @@ def map_wallet_stats_to_features(wallet_stats: dict[str, Any]) -> dict[str, Any]
     # Raw GMGN fields (with safe defaults)
     # ------------------------------------------------------------------
     total_profit = _safe_float(wallet_stats.get("total_profit"))
+    if total_profit == 0:
+        total_profit = _safe_float(wallet_stats.get("realized_profit"))
+    pnl_stat = wallet_stats.get("pnl_stat")
+    if not isinstance(pnl_stat, dict):
+        pnl_stat = {}
     win_rate = _safe_float(wallet_stats.get("win_rate"))
+    if win_rate == 0:
+        raw_winrate = _safe_float(pnl_stat.get("winrate"))
+        win_rate = raw_winrate * 100.0 if 0 < raw_winrate <= 1 else raw_winrate
     total_trades = _safe_int(wallet_stats.get("total_trades"))
+    if total_trades == 0:
+        total_trades = _safe_int(wallet_stats.get("buy")) + _safe_int(wallet_stats.get("sell"))
     trades_7d = _safe_int(wallet_stats.get("trades_7d"))
     trades_30d = _safe_int(wallet_stats.get("trades_30d"))
+    if trades_7d == 0:
+        trades_7d = total_trades
+    if trades_30d == 0:
+        trades_30d = total_trades
     avg_holding_time = _safe_float(wallet_stats.get("avg_holding_time"))
+    if avg_holding_time == 0:
+        avg_holding_time = _safe_float(pnl_stat.get("avg_holding_period")) / 3600.0
     pnl_30d = _safe_float(wallet_stats.get("pnl_30d"))
+    if pnl_30d == 0:
+        pnl_30d = total_profit
     max_drawdown = _safe_float(wallet_stats.get("max_drawdown"))
     portfolio_value = _safe_float(wallet_stats.get("portfolio_value"))
     balance_usd = _safe_float(wallet_stats.get("balance_usd"))
@@ -303,7 +331,7 @@ def map_token_top_traders_to_wallet_addresses(
         if isinstance(item, str):
             addresses.append(item)
         elif isinstance(item, dict):
-            addr = item.get("wallet_address") or item.get("account_address") or item.get("address") or item.get("wallet")
+            addr = item.get("wallet_address") or item.get("address") or item.get("maker") or item.get("wallet") or item.get("account_address")
             if isinstance(addr, str) and addr:
                 addresses.append(addr)
 

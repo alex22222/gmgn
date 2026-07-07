@@ -25,7 +25,7 @@ from .status import build_status
 # Tiny real safety limits enforced by the dashboard (SOL)
 _MAX_SINGLE_TRADE_SOL = 0.01
 _MAX_DAILY_LOSS_SOL = 0.03
-_MAX_COPY_WHITELIST_LEADERS = 5
+_MAX_COPY_WHITELIST_LEADERS = 10
 _WHITELIST_SCORE_INTERVAL_SECONDS = 3 * 60 * 60
 _LOW_WALLET_SCORE_THRESHOLD = 60.0
 _AUTO_STOP_LOSS_INTERVAL_SECONDS = 30
@@ -1852,7 +1852,9 @@ def serve(
     factory = server_factory or DashboardHandler.create_server
     server = factory(host, selected_port, handler)
     stop_auto_stop_loss = threading.Event()
+    stop_whitelist_score = threading.Event()
     auto_stop_loss_thread = _start_auto_stop_loss_monitor(root.resolve(), stop_auto_stop_loss)
+    whitelist_score_thread = _start_whitelist_score_monitor(root.resolve(), stop_whitelist_score)
     print(f'GMGN dashboard: http://{host}:{selected_port}')
     try:
         server.serve_forever()
@@ -1860,7 +1862,9 @@ def serve(
         print('GMGN dashboard stopped')
     finally:
         stop_auto_stop_loss.set()
+        stop_whitelist_score.set()
         auto_stop_loss_thread.join(timeout=2)
+        whitelist_score_thread.join(timeout=2)
         server.server_close()
 
 
@@ -2030,6 +2034,48 @@ def _read_or_refresh_whitelist_score_report(root: Path, wallets: list[object]) -
     }
     atomic_write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', report_path)
     return report
+
+
+def _run_whitelist_score_refresh_once(root: Path) -> dict[str, object]:
+    config = _read_json_object(root / 'config' / 'wallet_whitelist.json')
+    wallets = config.get('wallets') if isinstance(config.get('wallets'), list) else []
+    report = _read_or_refresh_whitelist_score_report(root, wallets)
+    return {
+        'ok': True,
+        'generated_at': report.get('generated_at') or '',
+        'next_run_at': report.get('next_run_at') or '',
+        'wallet_count': report.get('wallet_count') or 0,
+        'low_score_count': report.get('low_score_count') or 0,
+    }
+
+
+def _start_whitelist_score_monitor(root: Path, stop_event: threading.Event) -> threading.Thread:
+    def run() -> None:
+        while not stop_event.is_set():
+            try:
+                result = _run_whitelist_score_refresh_once(root)
+                durable_append_text(
+                    json.dumps({
+                        'event': 'whitelist_score_refresh',
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
+                        'result': result,
+                    }, ensure_ascii=False, sort_keys=True) + '\n',
+                    root.resolve() / 'data/trading_log.jsonl',
+                )
+            except Exception as exc:
+                durable_append_text(
+                    json.dumps({
+                        'event': 'whitelist_score_refresh_error',
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
+                        'error': str(exc),
+                    }, ensure_ascii=False, sort_keys=True) + '\n',
+                    root.resolve() / 'data/trading_log.jsonl',
+                )
+            stop_event.wait(_WHITELIST_SCORE_INTERVAL_SECONDS)
+
+    thread = threading.Thread(target=run, name='gmgn-whitelist-score', daemon=True)
+    thread.start()
+    return thread
 
 
 def _score_whitelist_wallet(wallet: dict[str, object]) -> dict[str, object]:
@@ -2537,18 +2583,20 @@ def _read_leader_pool_state(root: Path) -> dict[str, object]:
         'backtested': backtest_count,
         'backtest_calibration_events': backtest_events,
     }
+    last_action = _read_json_object(root / 'data/leader_pool_last_action.json')
     return {
         'config': config,
         'stages': stages,
         'counts': counts,
         'quality_summary': _leader_pool_quality_summary(counts, config),
-        'next_action': _leader_pool_next_action(counts, config),
+        'source_quality': _leader_pool_source_quality(discovered, whitelist_records, watchlist_records, blacklist_records, config),
+        'next_action': _leader_pool_next_action(counts, config, last_action),
         'copy_whitelist_limit': _MAX_COPY_WHITELIST_LEADERS,
         'prerequisites': {
             'gmgn_api_key_configured': _gmgn_api_key_configured(),
         },
         'loop_state': _read_json_object(root / 'data/leader_pool_loop_state.json'),
-        'last_action': _read_json_object(root / 'data/leader_pool_last_action.json'),
+        'last_action': last_action,
         'top_leaders': [_leader_pool_wallet_payload(wallet) for wallet in high_quality[:10]],
         'funnel': [
             _leader_pool_funnel_stage('candidates', '扫链候选', len(discovered), '进入候选池，等待评分筛选'),
@@ -2582,7 +2630,11 @@ def _read_leader_pool_state(root: Path) -> dict[str, object]:
     }
 
 
-def _leader_pool_next_action(counts: dict[str, object], config: dict[str, object]) -> dict[str, object]:
+def _leader_pool_next_action(
+    counts: dict[str, object],
+    config: dict[str, object],
+    last_action: dict[str, object] | None = None,
+) -> dict[str, object]:
     discovered = int(counts.get('discovered') or 0)
     scored = int(counts.get('scored') or 0)
     high_quality = int(counts.get('high_quality') or 0)
@@ -2590,9 +2642,41 @@ def _leader_pool_next_action(counts: dict[str, object], config: dict[str, object
     backtested = int(counts.get('backtested') or 0)
     discovery_target = int(config.get('discovery_target') or 0)
     high_quality_target = int(config.get('high_quality_target') or 0)
+    last_discover_added = None
+    if isinstance(last_action, dict):
+        discover_action = last_action
+        nested_result = last_action.get('result')
+        if last_action.get('action') == 'loop_once' and isinstance(nested_result, dict):
+            discover_action = nested_result
+        if discover_action.get('action') == 'discover':
+            last_discover_added = int(discover_action.get('added') or 0)
     if discovered < discovery_target:
+        if last_discover_added == 0 and scored < discovered:
+            return _leader_pool_action_status(
+                'score',
+                '扩池暂未新增钱包，先评分当前未评分候选，避免空转。',
+                needs_api_key=True,
+            )
         return _leader_pool_action_status('discover', '继续扫链扩池，把更多 leader 钱包加入候选池。', needs_api_key=True)
     if high_quality < high_quality_target:
+        if scored >= min(discovered, 100):
+            hit_rate = high_quality / scored if scored else 0.0
+            projected = discovered * hit_rate if hit_rate > 0 else 0.0
+            if projected < high_quality_target:
+                if last_discover_added == 0 and scored < discovered:
+                    return _leader_pool_action_status(
+                        'score',
+                        '高质量命中率偏低，但本轮扩池无新增；先评分现有未评分候选。',
+                        needs_api_key=True,
+                    )
+                expanded_target = discovered + max(100, discovery_target)
+                status = _leader_pool_action_status(
+                    'discover',
+                    '当前候选命中率预计不足以达到高质量目标，优先继续扩池寻找更强 leader。',
+                    needs_api_key=True,
+                )
+                status['target'] = expanded_target
+                return status
         if discovered > 0 and scored >= discovered:
             expanded_target = discovered + max(100, discovery_target)
             status = _leader_pool_action_status(
@@ -2634,6 +2718,111 @@ def _leader_pool_quality_summary(counts: dict[str, object], config: dict[str, ob
         'estimated_candidates_needed': estimated_required,
         'recommendation': recommendation,
     }
+
+
+def _leader_pool_source_quality(
+    discovered: list[dict[str, object]],
+    whitelist_records: list[object],
+    watchlist_records: list[object],
+    blacklist_records: list[object],
+    config: dict[str, object],
+) -> list[dict[str, object]]:
+    candidate_counts: dict[str, int] = {}
+    for wallet in discovered:
+        if not isinstance(wallet, dict):
+            continue
+        source = _leader_source_label(wallet.get('source'))
+        candidate_counts[source] = candidate_counts.get(source, 0) + 1
+
+    buckets: dict[str, dict[str, object]] = {}
+    for source, count in candidate_counts.items():
+        buckets[source] = {
+            'source': source,
+            'candidates': count,
+            'scored': 0,
+            'high_quality': 0,
+            'near_quality': 0,
+            'watch': 0,
+            'rejected': 0,
+        }
+
+    for bucket_name, records in (
+        ('whitelist', whitelist_records),
+        ('watch', watchlist_records),
+        ('rejected', blacklist_records),
+    ):
+        for wallet in records:
+            if not isinstance(wallet, dict):
+                continue
+            source = _leader_source_label(wallet.get('source'))
+            entry = buckets.setdefault(source, {
+                'source': source,
+                'candidates': candidate_counts.get(source, 0),
+                'scored': 0,
+                'high_quality': 0,
+                'near_quality': 0,
+                'watch': 0,
+                'rejected': 0,
+            })
+            entry['scored'] = int(entry.get('scored') or 0) + 1
+            if bucket_name == 'watch':
+                entry['watch'] = int(entry.get('watch') or 0) + 1
+            if bucket_name == 'rejected':
+                entry['rejected'] = int(entry.get('rejected') or 0) + 1
+            if _leader_meets_quality(wallet, config):
+                entry['high_quality'] = int(entry.get('high_quality') or 0) + 1
+            elif _leader_near_quality(wallet, config):
+                entry['near_quality'] = int(entry.get('near_quality') or 0) + 1
+
+    rows: list[dict[str, object]] = []
+    for entry in buckets.values():
+        scored = int(entry.get('scored') or 0)
+        high_quality = int(entry.get('high_quality') or 0)
+        near_quality = int(entry.get('near_quality') or 0)
+        candidates = int(entry.get('candidates') or 0)
+        hit_rate = high_quality / scored if scored else 0.0
+        near_rate = (high_quality + near_quality) / scored if scored else 0.0
+        recommendation = '继续评分'
+        if scored >= 20 and high_quality == 0 and near_quality == 0:
+            recommendation = '降权或兜底'
+        elif scored >= 20 and near_quality > high_quality:
+            recommendation = '保留观察'
+        rows.append({
+            **entry,
+            'coverage_percent': round(min(100.0, scored / candidates * 100), 2) if candidates else 0.0,
+            'hit_rate_percent': round(hit_rate * 100, 2),
+            'near_rate_percent': round(near_rate * 100, 2),
+            'recommendation': recommendation,
+        })
+    return sorted(
+        rows,
+        key=lambda item: (
+            float(item.get('hit_rate_percent') or 0),
+            float(item.get('near_rate_percent') or 0),
+            int(item.get('scored') or 0),
+            int(item.get('candidates') or 0),
+        ),
+        reverse=True,
+    )
+
+
+def _leader_source_label(source: object) -> str:
+    value = str(source or '').strip()
+    return value or 'unknown'
+
+
+def _leader_near_quality(wallet: dict[str, object], config: dict[str, object]) -> bool:
+    stats = wallet.get('stats')
+    if not isinstance(stats, dict):
+        stats = {}
+    min_score = _number(config.get('min_score'))
+    min_win_rate = _number(config.get('min_win_rate_percent'))
+    min_trades = _number(config.get('min_total_trades'))
+    return (
+        _number(wallet.get('total_score')) >= max(0.0, min_score - 10.0)
+        and _number(stats.get('winrate')) >= max(0.0, min_win_rate - 5.0)
+        and _number(stats.get('total_trades')) >= min_trades
+    )
 
 
 def _leader_pool_action_status(action: str, reason: str, needs_api_key: bool = False) -> dict[str, object]:
@@ -3743,6 +3932,16 @@ INDEX_HTML = r'''<!doctype html>
       </div>
       <div id="leaderPoolTargetPanel" data-leader-tab="target" hidden>
         <div id="leaderPoolStages" class="signal-grid"></div>
+        <div class="leader-list-head">
+          <h3>来源质量诊断</h3>
+          <span class="small">按高质量命中率排序，辅助选择继续评分或扩池来源</span>
+        </div>
+        <div class="portfolio-table-wrap">
+          <table class="source-table">
+            <thead><tr><th>来源</th><th>候选</th><th>已评分</th><th>高质量</th><th>接近达标</th><th>淘汰</th><th>命中率</th><th>建议</th></tr></thead>
+            <tbody id="leaderSourceQuality"></tbody>
+          </table>
+        </div>
         <form id="leaderPoolConfigForm" class="config-form" onsubmit="saveLeaderPoolConfig(event)">
           <label>扫链目标
             <input name="discovery_target" type="number" min="1" step="1">
@@ -4103,7 +4302,45 @@ INDEX_HTML = r'''<!doctype html>
         });
       }
       renderLeaderFunnel(leaderPool);
+      renderLeaderSourceQuality(leaderPool);
       renderLeaderBacktest(leaderPool);
+    }
+
+    function renderLeaderSourceQuality(leaderPool) {
+      const body = document.getElementById('leaderSourceQuality');
+      if (!body) return;
+      const rows = leaderPool.source_quality || [];
+      body.innerHTML = '';
+      if (!rows.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 8;
+        cell.className = 'empty';
+        cell.textContent = '暂无来源质量数据。';
+        row.appendChild(cell);
+        body.appendChild(row);
+        return;
+      }
+      for (const source of rows) {
+        const row = document.createElement('tr');
+        if (source.recommendation === '降权或兜底') row.className = 'score-low';
+        const values = [
+          source.source || 'unknown',
+          formatInteger(source.candidates),
+          `${formatInteger(source.scored)} / ${formatOneDecimal(source.coverage_percent)}%`,
+          formatInteger(source.high_quality),
+          formatInteger(source.near_quality),
+          formatInteger(source.rejected),
+          `${formatOneDecimal(source.hit_rate_percent)}%`,
+          source.recommendation || '-',
+        ];
+        for (const value of values) {
+          const cell = document.createElement('td');
+          cell.textContent = value;
+          row.appendChild(cell);
+        }
+        body.appendChild(row);
+      }
     }
 
     function renderLeaderPoolStatusCards(container, data) {

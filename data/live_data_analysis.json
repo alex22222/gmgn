@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-07-03T08:54:27.573365+00:00",
+  "chain": "sol",
+  "dry_run": true,
+  "signal_distribution": {
+    "smartmoney": 0,
+    "trending": 0,
+    "total": 0
+  },
+  "wallet_quality": {
+    "average_score": 0.0,
+    "count": 0
+  },
+  "token_diversity": {
+    "unique_tokens": 0,
+    "total_signals": 0
+  },
+  "simulation_summary": {
+    "total_signals": 0,
+    "total_trades": 0,
+    "win_rate": 0.0,
+    "total_pnl_sol": 0.0,
+    "max_drawdown_percent": 0.0,
+    "sharpe_ratio": 0.0
+  },
+  "sufficient_for_phase2": false
+}

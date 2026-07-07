@@ -1,0 +1,64 @@
+[
+  {
+    "wallet_address": "MockWallet0000111111111111111111111111111111111111",
+    "decision": "watch",
+    "score": 69,
+    "reasons": [
+      "short holding time 4.55h (-8)",
+      "new wallet 0d (-10)",
+      "low diversification 0.00 (-8)",
+      "low stop-loss discipline 0.0% (-5)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 0.0
+  },
+  {
+    "wallet_address": "MockWallet0002111111111111111111111111111111111111",
+    "decision": "watch",
+    "score": 77,
+    "reasons": [
+      "new wallet 0d (-10)",
+      "low diversification 0.00 (-8)",
+      "low stop-loss discipline 0.0% (-5)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 0.0
+  },
+  {
+    "wallet_address": "MockWallet0004111111111111111111111111111111111111",
+    "decision": "watch",
+    "score": 77,
+    "reasons": [
+      "new wallet 0d (-10)",
+      "low diversification 0.00 (-8)",
+      "low stop-loss discipline 0.0% (-5)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 0.0
+  },
+  {
+    "wallet_address": "MockWallet0007111111111111111111111111111111111111",
+    "decision": "watch",
+    "score": 77,
+    "reasons": [
+      "new wallet 0d (-10)",
+      "low diversification 0.00 (-8)",
+      "low stop-loss discipline 0.0% (-5)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 0.0
+  },
+  {
+    "wallet_address": "MockWallet0008111111111111111111111111111111111111",
+    "decision": "watch",
+    "score": 69,
+    "reasons": [
+      "short holding time 1.11h (-8)",
+      "new wallet 0d (-10)",
+      "low diversification 0.00 (-8)",
+      "low stop-loss discipline 0.0% (-5)"
+    ],
+    "hard_rejected": false,
+    "robot_score": 0.0
+  }
+]

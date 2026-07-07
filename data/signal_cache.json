@@ -1,0 +1,116 @@
+{
+  "4xjs9YJD8RgTdm1iTSqt7yEznoaCTB4kKNSco3z7pump": {
+    "tp_orders": [
+      {
+        "level": 1,
+        "trigger_percent": 70.0,
+        "sell_percent": 50.0
+      },
+      {
+        "level": 2,
+        "trigger_percent": 300.0,
+        "sell_percent": 50.0
+      }
+    ],
+    "sl_order": {
+      "trigger_percent": -40.0,
+      "sell_percent": 100.0
+    },
+    "max_slippage_percent": 2.0
+  },
+  "3Q1Lu5TGWPvoA95HwTu7uPkjNLXj498moxfko2Pkpump": {
+    "tp_orders": [
+      {
+        "level": 1,
+        "trigger_percent": 50.0,
+        "sell_percent": 50.0
+      },
+      {
+        "level": 2,
+        "trigger_percent": 100.0,
+        "sell_percent": 50.0
+      }
+    ],
+    "sl_order": {
+      "trigger_percent": -40.0,
+      "sell_percent": 100.0
+    },
+    "max_slippage_percent": 5.0
+  },
+  "FhwV2wZicstWLnULi7dXZYaCRRv17AtQ9RcmJSngpump": {
+    "tp_orders": [
+      {
+        "level": 1,
+        "trigger_percent": 100.0,
+        "sell_percent": 50.0
+      },
+      {
+        "level": 2,
+        "trigger_percent": 300.0,
+        "sell_percent": 50.0
+      }
+    ],
+    "sl_order": {
+      "trigger_percent": -40.0,
+      "sell_percent": 100.0
+    },
+    "max_slippage_percent": 2.0
+  },
+  "2ZAm1ekz9WWAx7BJxfNnfCrQe7KWNYECqfNDFdxPpump": {
+    "tp_orders": [
+      {
+        "level": 1,
+        "trigger_percent": 60.0,
+        "sell_percent": 50.0
+      },
+      {
+        "level": 2,
+        "trigger_percent": 200.0,
+        "sell_percent": 50.0
+      }
+    ],
+    "sl_order": {
+      "trigger_percent": -40.0,
+      "sell_percent": 100.0
+    },
+    "max_slippage_percent": 2.0
+  },
+  "J6cUnin6oZzv39qM2XErRXfYwhj2iQhQS18wQwbDbvYj": {
+    "tp_orders": [
+      {
+        "level": 1,
+        "trigger_percent": 60.0,
+        "sell_percent": 50.0
+      },
+      {
+        "level": 2,
+        "trigger_percent": 200.0,
+        "sell_percent": 50.0
+      }
+    ],
+    "sl_order": {
+      "trigger_percent": -40.0,
+      "sell_percent": 100.0
+    },
+    "max_slippage_percent": 2.0
+  },
+  "48oT2QgpyPFUiJYXbvZTS1tVDp98R9uYAJX5ojNrpump": {
+    "tp_orders": [
+      {
+        "level": 1,
+        "trigger_percent": 100.0,
+        "sell_percent": 50.0
+      },
+      {
+        "level": 2,
+        "trigger_percent": 300.0,
+        "sell_percent": 50.0
+      }
+    ],
+    "sl_order": {
+      "trigger_percent": -40.0,
+      "sell_percent": 100.0
+    },
+    "max_slippage_percent": 2.0
+  }
+}

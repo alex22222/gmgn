@@ -1,0 +1,38 @@
+{
+  "timestamp": "2026-07-03T08:54:27.573365+00:00",
+  "chain": "sol",
+  "dry_run": true,
+  "signals_fetched": 0,
+  "smartmoney_signals": 0,
+  "trending_signals": 0,
+  "trade_signals": 0,
+  "simulation_result": {
+    "orders_created": 0,
+    "orders_confirmed": 0,
+    "orders_failed": 0,
+    "portfolio_snapshot": {
+      "timestamp": "2026-07-03T08:54:27.573340+00:00",
+      "total_value_sol": 10.0,
+      "available_sol": 10.0,
+      "positions": [],
+      "daily_pnl_sol": 0.0,
+      "daily_pnl_percent": 0.0,
+      "total_return_percent": 0.0,
+      "sharpe_ratio": 0.0,
+      "max_drawdown_percent": 0.0,
+      "win_count": 0,
+      "loss_count": 0
+    },
+    "total_pnl_sol": 0.0,
+    "simulation_duration_ms": 0.08,
+    "execution_records": []
+  },
+  "summary": {
+    "total_signals": 0,
+    "total_trades": 0,
+    "win_rate": 0.0,
+    "total_pnl_sol": 0.0,
+    "max_drawdown_percent": 0.0,
+    "sharpe_ratio": 0.0
+  }
+}

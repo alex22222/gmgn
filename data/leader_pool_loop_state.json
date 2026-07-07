@@ -1,0 +1,25 @@
+{
+  "action": "loop_once",
+  "ok": true,
+  "message": "推进下一步：评分筛选；评分筛选完成：高质量 5，观察 44，淘汰 342。",
+  "selected_action": "score",
+  "result": {
+    "action": "score",
+    "ok": true,
+    "message": "评分筛选完成：高质量 5，观察 44，淘汰 342。",
+    "generated_at": "2026-07-05T14:46:55.336646+00:00",
+    "candidate_count": 1380,
+    "scored_this_run": 10,
+    "remaining_unscored": 987,
+    "high_quality_count": 5,
+    "watchlist_count": 44,
+    "blacklist_count": 342,
+    "lookback_windows": [
+      "7d",
+      "14d",
+      "30d"
+    ],
+    "score_concurrency": 4
+  },
+  "generated_at": "2026-07-05T14:46:55.339137+00:00"
+}

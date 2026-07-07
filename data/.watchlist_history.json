@@ -1,0 +1,80 @@
+{
+  "G4LFjeKUXeTFJteeSCLCdEmxdWr4nGKzKdXtK9u8N7MJ": {
+    "total_score": 42.2,
+    "realized_profit": 2298.435064640697,
+    "winrate": 45.83333333333333,
+    "total_trades": 464,
+    "token_num": 96,
+    "avg_holding_hours": 0.7260127314814815,
+    "wallet_age_days": 6,
+    "tags": [
+      "gmgn",
+      "smart_degen",
+      "fresh_wallet"
+    ]
+  },
+  "3U6hEByCwbhVaZ2g5bqL9DYwAXvZ4GebrkpVJ5K7A7vn": {
+    "total_score": 41.61,
+    "realized_profit": 2352.7161857689775,
+    "winrate": 34.78260869565217,
+    "total_trades": 196,
+    "token_num": 24,
+    "avg_holding_hours": 2.861990740740741,
+    "wallet_age_days": 43,
+    "tags": [
+      "smart_degen"
+    ]
+  },
+  "9d1XVVe34kaB5AVBvdk5o13nRCfX5vUNEq4wmWr4sg25": {
+    "total_score": 39.81,
+    "realized_profit": 6412.218905148415,
+    "winrate": 24.285714285714285,
+    "total_trades": 480,
+    "token_num": 72,
+    "avg_holding_hours": 15.364637345679013,
+    "wallet_age_days": 46,
+    "tags": [
+      "smart_degen",
+      "axiom"
+    ]
+  },
+  "AutGs6XGfH3rx8aniwDyon57ccDoFwEhzP3vWZDcgmeh": {
+    "total_score": 46.32,
+    "realized_profit": 1478.4104515615127,
+    "winrate": 44.827586206896555,
+    "total_trades": 454,
+    "token_num": 65,
+    "avg_holding_hours": 14.763141025641026,
+    "wallet_age_days": 67.61761574074075,
+    "tags": [
+      "smart_degen",
+      "axiom"
+    ]
+  },
+  "47zr92fSFaYTwQAgmtttZpZ8YygN5Qe61ZUQRDwHKg8x": {
+    "total_score": 43.59,
+    "realized_profit": 5808.991942893877,
+    "winrate": 42.1875,
+    "total_trades": 282,
+    "token_num": 85,
+    "avg_holding_hours": 42.116620915032684,
+    "wallet_age_days": 533.0355208333333,
+    "tags": [
+      "smart_degen",
+      "gmgn"
+    ]
+  },
+  "DukohWH7qTW54d2zNPkRiSsGWD9Y3N9pAHk5sjvh8igF": {
+    "total_score": 41.92,
+    "realized_profit": 1108.6523021475282,
+    "winrate": 49.504950495049506,
+    "total_trades": 387,
+    "token_num": 105,
+    "avg_holding_hours": 21.308624338624337,
+    "wallet_age_days": 441.03010416666666,
+    "tags": [
+      "smart_degen",
+      "axiom"
+    ]
+  }
+}
