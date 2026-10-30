@@ -98,3 +98,10 @@ python3 -m gmgn_monitor.replay --input fixtures/candidates.jsonl --output data/c
 # Emergency stop: revert gate to blocked
 python3 -m gmgn_monitor.automation_gate --config config/automation_gate.json --output data/automation_gate.md
 ```
+
+## Cursor Cloud specific instructions
+
+- Run commands from the repository root. `gmgn_monitor` is imported from the working directory. Do not `pip install -e .`: setuptools rejects the flat layout because `config/`, `data/`, `fixtures/`, `research/`, and `spec/` sit beside the package.
+- Runtime code uses the Python 3.10+ standard library. `pytest` is required because many tests import it. `certifi`, `cryptography`, and `PyNaCl` are imported lazily by the DexScreener, Birdeye, and GMGN API clients.
+- The local dashboard is `python3 -m gmgn_monitor.dashboard` on `127.0.0.1:8765`. Do not use `dashboard_daemon.py`; it chdirs to a machine-specific path outside this checkout.
+- `python3 -m gmgn_monitor.verify` rewrites pipeline artifacts under `data/` and appends `data/verification_history.jsonl`. The fixture set must report `summary: alert=1 watch=1 reject=2`, and the automation gate report must contain `Status: auto_trading_enabled`.
