@@ -4016,7 +4016,7 @@ INDEX_HTML = r'''<!doctype html>
           <h2>持仓管理</h2>
           <div id="portfolioNotice" class="small">加载持仓快照中</div>
         </div>
-        <button id="portfolioRefreshButton" class="secondary" type="button" onclick="refreshPortfolio(this)">刷新持仓</button>
+        <button id="portfolioRefreshButton" class="secondary" type="button" onclick="refreshPortfolio(this)" disabled>刷新持仓</button>
       </div>
       <div id="portfolioActionNotice" class="notice"></div>
       <div id="portfolioSummary" class="portfolio-summary"></div>
@@ -4119,6 +4119,7 @@ INDEX_HTML = r'''<!doctype html>
   </main>
   <script>
     let dashboard = null;
+    let refreshPromise = null;
     let portfolioSummaryTimer = null;
     let portfolioPositionsTimer = null;
     let portfolioRefreshInFlight = false;
@@ -4126,10 +4127,37 @@ INDEX_HTML = r'''<!doctype html>
     let portfolioNeedsPositionRender = false;
     const leaderFunnelPageSize = 25;
 
+    function setPortfolioRefreshEnabled(enabled) {
+      const button = document.getElementById('portfolioRefreshButton');
+      if (button) button.disabled = !enabled;
+    }
+
     async function refresh() {
-      const response = await fetch('/api/status');
-      dashboard = await response.json();
-      render();
+      if (refreshPromise) return refreshPromise;
+      refreshPromise = (async () => {
+        const response = await fetch('/api/status');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        dashboard = await response.json();
+        setPortfolioRefreshEnabled(true);
+        render();
+        return dashboard;
+      })();
+      try {
+        return await refreshPromise;
+      } finally {
+        refreshPromise = null;
+      }
+    }
+
+    async function ensureDashboardReady() {
+      if (dashboard) return dashboard;
+      if (refreshPromise) {
+        await refreshPromise;
+        return dashboard;
+      }
+      return refresh();
     }
 
     function render() {
@@ -4847,6 +4875,10 @@ INDEX_HTML = r'''<!doctype html>
       }
       portfolioRefreshInFlight = true;
       portfolioRefreshPromise = (async () => {
+        await ensureDashboardReady();
+        if (!dashboard) {
+          throw new Error('仪表盘尚未加载完成');
+        }
         const response = await fetch('/api/portfolio', { cache: 'no-store' });
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
@@ -4898,6 +4930,10 @@ INDEX_HTML = r'''<!doctype html>
       const target = button || document.getElementById('portfolioRefreshButton');
       const originalText = target ? target.textContent : '';
       if (target) {
+        if (target.disabled && !dashboard) {
+          document.getElementById('portfolioNotice').textContent = '仪表盘加载中，请稍候再刷新持仓。';
+          return;
+        }
         target.disabled = true;
         target.textContent = '刷新中';
       }
@@ -4908,7 +4944,7 @@ INDEX_HTML = r'''<!doctype html>
         document.getElementById('portfolioNotice').textContent = `刷新失败：${String(error)}`;
       } finally {
         if (target) {
-          target.disabled = false;
+          target.disabled = !dashboard;
           target.textContent = originalText || '刷新持仓';
         }
       }
