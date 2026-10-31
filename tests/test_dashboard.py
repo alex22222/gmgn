@@ -143,6 +143,26 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(payload['user_flow'][0]['action'], '刷新状态')
         self.assertEqual(payload['outputs']['daily_summary']['content'], '# Summary\n')
 
+    def test_dashboard_status_payload_defers_leader_funnel_lists(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / 'data').mkdir(parents=True)
+            (root / 'fixtures').mkdir(parents=True)
+            (root / 'fixtures/candidates.jsonl').write_text('', encoding='utf-8')
+            big = [{'wallet_address': f'Leader{index:04d}', 'total_score': 80} for index in range(200)]
+            (root / 'data/candidate_wallets_smartmoney.json').write_text(
+                json.dumps(big),
+                encoding='utf-8',
+            )
+
+            full = build_dashboard_payload(root, include_leader_funnel_lists=True)
+            slim = build_dashboard_payload(root, include_leader_funnel_lists=False)
+
+        self.assertEqual(len(full['leader_pool']['funnel_lists']['candidates']), 200)
+        self.assertEqual(slim['leader_pool']['funnel_lists'], {})
+        self.assertTrue(slim['leader_pool']['funnel_lists_deferred'])
+        self.assertNotIn('funnel_lists_deferred', full['leader_pool'])
+
     def test_dashboard_portfolio_reads_local_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -1817,6 +1837,15 @@ class DashboardTest(unittest.TestCase):
         self.assertIn('return portfolioRefreshPromise;', INDEX_HTML)
         self.assertIn('if (!response.ok) {', INDEX_HTML)
         self.assertIn('if (portfolioNeedsPositionRender) {', INDEX_HTML)
+        self.assertIn('ensureDashboardReady', INDEX_HTML)
+        self.assertIn('await ensureDashboardReady();', INDEX_HTML)
+        self.assertIn('setPortfolioRefreshEnabled', INDEX_HTML)
+        self.assertIn('portfolioRefreshButton" class="secondary" type="button" onclick="refreshPortfolio(this)" disabled', INDEX_HTML)
+        self.assertIn('/api/leader-pool', INDEX_HTML)
+        self.assertIn('loadLeaderFunnelLists', INDEX_HTML)
+        self.assertIn('funnel_lists_deferred', INDEX_HTML)
+        self.assertIn('copy_trading.enabled=false', INDEX_HTML)
+        self.assertIn('GMGN_WALLET_ADDRESS', INDEX_HTML)
         self.assertIn('卖出', INDEX_HTML)
         self.assertIn('formatPriceWithUnit', INDEX_HTML)
         self.assertIn('formatPrice', INDEX_HTML)

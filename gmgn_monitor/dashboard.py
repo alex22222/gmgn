@@ -202,7 +202,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_text(INDEX_HTML, 'text/html; charset=utf-8')
             return
         if path == '/api/status':
-            self._send_json(build_dashboard_payload(self.root))
+            self._send_json(build_dashboard_payload(self.root, include_leader_funnel_lists=False))
+            return
+        if path == '/api/leader-pool':
+            self._send_json(_read_leader_pool_state(self.root))
             return
         if path == '/api/trading/config':
             self._send_json(_read_trading_config(self.root))
@@ -1723,7 +1726,11 @@ def _optional_number(value: object) -> float | None:
     return _number(value)
 
 
-def build_dashboard_payload(root: Path) -> dict[str, object]:
+def build_dashboard_payload(
+    root: Path,
+    *,
+    include_leader_funnel_lists: bool = True,
+) -> dict[str, object]:
     root = root.resolve()
     status = build_status(
         root=root,
@@ -1736,6 +1743,15 @@ def build_dashboard_payload(root: Path) -> dict[str, object]:
         fail_on_stale_temp_artifacts=True,
     )
     portfolio = _get_portfolio_data(root)
+    leader_pool = _read_leader_pool_state(root)
+    if not include_leader_funnel_lists:
+        # Home/status payloads omit the multi-hundred-KB funnel lists; Leader 池
+        # page loads them on demand via GET /api/leader-pool.
+        leader_pool = {
+            **leader_pool,
+            'funnel_lists': {},
+            'funnel_lists_deferred': True,
+        }
     return {
         'actions': [
             {
@@ -1749,7 +1765,7 @@ def build_dashboard_payload(root: Path) -> dict[str, object]:
         'audit_report': build_audit_report(root),
         'data_sources': build_data_sources(root),
         'signals_summary': _read_signals_summary(root),
-        'leader_pool': _read_leader_pool_state(root),
+        'leader_pool': leader_pool,
         'system_config': _read_system_config(root),
         'copy_trading_config': _read_copy_trading_config(root),
         'portfolio': portfolio,
@@ -4015,7 +4031,7 @@ INDEX_HTML = r'''<!doctype html>
       <div class="portfolio-head">
         <div>
           <h2>持仓管理</h2>
-          <div id="portfolioNotice" class="small">加载持仓快照中</div>
+          <div id="portfolioNotice" class="small">加载持仓快照中；真实钱包需配置 GMGN_WALLET_ADDRESS</div>
         </div>
         <button id="portfolioRefreshButton" class="secondary" type="button" onclick="refreshPortfolio(this)" disabled>刷新持仓</button>
       </div>
@@ -4121,6 +4137,7 @@ INDEX_HTML = r'''<!doctype html>
   <script>
     let dashboard = null;
     let refreshPromise = null;
+    let leaderFunnelLoadPromise = null;
     let portfolioSummaryTimer = null;
     let portfolioPositionsTimer = null;
     let portfolioRefreshInFlight = false;
@@ -4333,6 +4350,41 @@ INDEX_HTML = r'''<!doctype html>
       renderLeaderFunnel(leaderPool);
       renderLeaderSourceQuality(leaderPool);
       renderLeaderBacktest(leaderPool);
+      if (leaderPool.funnel_lists_deferred && currentPage() === 'leader-pool') {
+        loadLeaderFunnelLists().catch(error => {
+          const notice = document.getElementById('leaderPoolNotice');
+          if (notice) {
+            notice.textContent = `Leader 列表加载失败：${String(error)}`;
+            notice.classList.toggle('visible', true);
+          }
+        });
+      }
+    }
+
+    async function loadLeaderFunnelLists() {
+      if (!dashboard) return null;
+      const current = dashboard.leader_pool || {};
+      if (!current.funnel_lists_deferred) return current;
+      if (leaderFunnelLoadPromise) return leaderFunnelLoadPromise;
+      leaderFunnelLoadPromise = (async () => {
+        const response = await fetch('/api/leader-pool', { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const leaderPool = await response.json();
+        if (dashboard) {
+          dashboard.leader_pool = leaderPool;
+          if (currentPage() === 'leader-pool') {
+            renderLeaderFunnel(leaderPool);
+          }
+        }
+        return leaderPool;
+      })();
+      try {
+        return await leaderFunnelLoadPromise;
+      } finally {
+        leaderFunnelLoadPromise = null;
+      }
     }
 
     function renderLeaderSourceQuality(leaderPool) {
@@ -4957,7 +5009,12 @@ INDEX_HTML = r'''<!doctype html>
       const scoreReport = copyConfig.score_report || {};
       const scoreNotice = document.getElementById('whitelistScoreNotice');
       const lowCount = scoreReport.low_score_count || 0;
-      scoreNotice.textContent = `白名单评分每 3 小时刷新；最近评分 ${formatTimestamp(scoreReport.generated_at) || '未生成'}；下次 ${formatTimestamp(scoreReport.next_run_at) || '待定'}。${lowCount ? `发现 ${lowCount} 个低分钱包，请人工复核。` : '当前未发现低分钱包。'}`;
+      const copyOff = copyConfig.enabled === false;
+      const enabledCount = copyConfig.enabled_wallet_count || 0;
+      const copyState = copyOff
+        ? '跟单总开关已关闭（copy_trading.enabled=false），当前不跟单。'
+        : (enabledCount ? `当前启用 Leader ${enabledCount} 个。` : '跟单总开关已开，但没有启用中的 Leader。');
+      scoreNotice.textContent = `${copyState} 白名单评分每 3 小时刷新；最近评分 ${formatTimestamp(scoreReport.generated_at) || '未生成'}；下次 ${formatTimestamp(scoreReport.next_run_at) || '待定'}。${lowCount ? `发现 ${lowCount} 个低分钱包，请人工复核。` : '当前未发现低分钱包。'}`;
       scoreNotice.classList.toggle('visible', true);
       const body = document.getElementById('whitelistWallets');
       body.innerHTML = '';
@@ -5036,7 +5093,10 @@ INDEX_HTML = r'''<!doctype html>
       const body = document.getElementById('copyConfigRows');
       const notice = document.getElementById('copyConfigNotice');
       if (!body || !notice) return;
-      notice.textContent = '保存仅更新白名单跟单参数；tiny_real 上限仍限制单笔 <= 0.01 SOL、日亏 <= 0.03 SOL、滑点 <= 5%。';
+      const copyOff = copyConfig.enabled === false;
+      notice.textContent = copyOff
+        ? '跟单总开关已关闭（copy_trading.enabled=false）。可先配置 Leader 参数，启用总开关后才会跟单。tiny_real 上限仍限制单笔 <= 0.01 SOL、日亏 <= 0.03 SOL、滑点 <= 5%。'
+        : '保存仅更新白名单跟单参数；tiny_real 上限仍限制单笔 <= 0.01 SOL、日亏 <= 0.03 SOL、滑点 <= 5%。';
       body.innerHTML = '';
       if (!wallets.length) {
         const row = document.createElement('tr');
