@@ -2,9 +2,9 @@
   "version": "1.0",
   "description": "GMGN Phase 2 — tiny_real 微型真实交易配置（单笔 ≤ 0.01 SOL，日亏损 ≤ 0.03 SOL）",
   "exposure_level": "tiny_real",
-  "trade_mode": "real",
+  "trade_mode": "dryrun",
   "created_at": "2025-07-15T00:00:00+08:00",
-  "updated_at": "2026-07-07T14:45:17.502224+00:00",
+  "updated_at": "2026-10-31T06:50:00+00:00",
   "wallets": [
     {
       "wallet_address": "7cVyqNK6fEq6EGAw1UoyKLy8ni84BanEKkdfj5FvZQBh",

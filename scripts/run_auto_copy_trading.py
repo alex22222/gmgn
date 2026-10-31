@@ -44,9 +44,11 @@ from gmgn_monitor.copy_trade_guards import (
     load_copy_trade_guard_config,
 )
 from gmgn_monitor.execution_loop import ExecutionLoopEngine, MarketData
+from gmgn_monitor.execution_switch import ExecutionSwitch, TRADE_MODE_DRYRUN, TRADE_MODE_REAL
 from gmgn_monitor.gmgn_api_client import GmgnApiClient
 from gmgn_monitor.live_signal_fetcher import LiveSignalFetcher
 from gmgn_monitor.order_manager import OrderManager
+from gmgn_monitor.paper_trade_executor import PaperBuyExecutor, PaperSellExecutor
 from gmgn_monitor.portfolio_tracker import PortfolioTracker
 from gmgn_monitor.position_monitor import PositionMonitor
 from gmgn_monitor.real_trade_executor import RealTradeExecutor
@@ -513,14 +515,30 @@ def _filter_current_follow_signals(
     return [signal for signal in signals if signal.wallet_address in allowed_wallets]
 
 
+def _resolve_trade_mode(config: dict[str, Any], explicit: str | None = None) -> str:
+    if explicit:
+        return ExecutionSwitch(explicit).mode
+    cfg_mode = str(config.get("trade_mode") or "").strip().lower()
+    if cfg_mode in (TRADE_MODE_DRYRUN, TRADE_MODE_REAL):
+        return cfg_mode
+    return ExecutionSwitch().mode
+
+
 def _init_components(
     config: dict[str, Any],
-    api_key: str,
-    private_key_pem: str,
+    api_key: str | None,
+    private_key_pem: str | None,
     wallet_address: str | None = None,
+    *,
+    trade_mode: str | None = None,
 ) -> dict[str, Any]:
     """Initialize all trading components."""
-    wallet_address = wallet_address or _get_wallet_address()
+    mode = _resolve_trade_mode(config, trade_mode)
+    paper_mode = mode == TRADE_MODE_DRYRUN
+    if paper_mode:
+        wallet_address = wallet_address or os.environ.get("GMGN_WALLET_ADDRESS") or "PaperWallet1111111111111111111111111111111"
+    else:
+        wallet_address = wallet_address or _get_wallet_address()
     follow_wallets = _get_follow_wallets(config)
     wallet_scores = _build_wallet_scores(follow_wallets)
     global_settings = config.get("global_settings") if isinstance(config.get("global_settings"), dict) else {}
@@ -534,36 +552,43 @@ def _init_components(
     css_engine = CSSEngine()
     preprocessor = SignalPreprocessor()
 
-    # GMGN API client (shared)
-    gmgn_client = GmgnApiClient(api_key=api_key, private_key_pem=private_key_pem)
+    gmgn_client = None
+    signal_fetcher = None
+    if api_key:
+        gmgn_client = GmgnApiClient(api_key=api_key, private_key_pem=private_key_pem or "")
+        signal_fetcher = LiveSignalFetcher(api_client=gmgn_client, wallet_scores=wallet_scores)
 
-    # Price monitoring
+    # Price monitoring (best-effort; paper mode tolerates failures)
     birdeye = BirdeyeClient()
     position_monitor = PositionMonitor(birdeye_client=birdeye)
 
-    # Real-money executors (auto_confirm=True for fully automated trading)
-    buy_executor = RealTradeExecutor(
-        wallet_address=wallet_address,
-        chain=CHAIN,
-        auto_confirm=True,
-        api_key=api_key,
-        private_key_pem=private_key_pem,
-        risk_limits=risk_limits,
-    )
-
-    sell_executor = SellExecutor(
-        wallet_address=wallet_address,
-        chain=CHAIN,
-        api_key=api_key,
-        private_key_pem=private_key_pem,
-        risk_manager=risk_manager,
-        order_manager=order_manager,
-        portfolio_tracker=portfolio,
-        auto_confirm=True,
-    )
+    if paper_mode:
+        buy_executor = PaperBuyExecutor(portfolio=portfolio)
+        sell_executor = PaperSellExecutor(portfolio=portfolio)
+    else:
+        if not api_key or not private_key_pem:
+            raise ValueError("real mode requires GMGN_API_KEY and private key")
+        buy_executor = RealTradeExecutor(
+            wallet_address=wallet_address,
+            chain=CHAIN,
+            auto_confirm=True,
+            api_key=api_key,
+            private_key_pem=private_key_pem,
+            risk_limits=risk_limits,
+        )
+        sell_executor = SellExecutor(
+            wallet_address=wallet_address,
+            chain=CHAIN,
+            api_key=api_key,
+            private_key_pem=private_key_pem,
+            risk_manager=risk_manager,
+            order_manager=order_manager,
+            portfolio_tracker=portfolio,
+            auto_confirm=True,
+        )
 
     sell_trigger = SellTrigger()
-    copy_sell_handler = CopySellHandler(sell_executor)
+    copy_sell_handler = CopySellHandler(sell_executor)  # type: ignore[arg-type]
 
     # Execution loop (no sell/position_monitor — those are handled in _run_cycle)
     loop = ExecutionLoopEngine(
@@ -576,11 +601,10 @@ def _init_components(
         sell_trigger=sell_trigger,
     )
 
-    # Signal fetcher
-    signal_fetcher = LiveSignalFetcher(api_client=gmgn_client, wallet_scores=wallet_scores)
-
     return {
         "wallet_address": wallet_address,
+        "trade_mode": mode,
+        "paper_mode": paper_mode,
         "follow_wallets": follow_wallets,
         "wallet_scores": wallet_scores,
         "risk_limits": risk_limits,
@@ -597,10 +621,34 @@ def _init_components(
         "gmgn_client": gmgn_client,
         "copy_guards": copy_guards,
         "signal_contexts": {},
-        "liquidate_removed_leaders": True,
+        "liquidate_removed_leaders": not paper_mode,
         "sell_cooldowns": {},
         "copy_sell_seen": {},
+        "use_paper_signals": paper_mode and signal_fetcher is None,
     }
+
+
+def _paper_activity_entries(wallet_address: str, iteration: int) -> list[dict[str, Any]]:
+    """Synthetic leader activity for paper mode when live API is unavailable."""
+    now = datetime.now(timezone.utc).isoformat()
+    token = f"PaperToken{wallet_address[:4]}{iteration % 97:02d}1111111111111111111111"[:44]
+    leader_price = 0.001 + (iteration % 5) * 0.0001
+    return [
+        {
+            "event_type": "buy",
+            "timestamp": now,
+            "quote_amount": 0.01,
+            "base_amount": 0.01 / leader_price,
+            "price": leader_price,
+            "current_price": leader_price * 1.02,
+            "token": {"address": token},
+            "honeypot_risk": False,
+            "lp_locked": True,
+            "top10_holder_percent": 18.0,
+            "is_mintable": False,
+            "is_freezable": False,
+        }
+    ]
 
 
 def _fetch_signals(components: dict[str, Any]) -> list[TradeSignal]:
@@ -615,20 +663,27 @@ def _fetch_signals(components: dict[str, Any]) -> list[TradeSignal]:
     print(f"[Signal] Fetching activity for {len(follow_wallets)} follow wallets...")
 
     all_signals: list[TradeSignal] = []
+    paper_iteration = int(components.get("paper_iteration") or 0)
     for wallet in follow_wallets:
         addr = wallet["wallet_address"]
-        try:
-            activity = fetcher.api_client.get_wallet_activity(
-                chain=CHAIN, wallet_address=addr, limit=20
-            )
-        except Exception as exc:
-            print(f"  [WARN] Failed to fetch activity for {addr[:16]}...: {exc}")
-            continue
-
-        entries = activity.get("activities") or activity.get("data") or []
-        if isinstance(entries, dict):
-            entries = entries.get("activities") or entries.get("data") or []
-        if not isinstance(entries, list):
+        entries: list[Any] = []
+        if fetcher is not None:
+            try:
+                activity = fetcher.api_client.get_wallet_activity(
+                    chain=CHAIN, wallet_address=addr, limit=20
+                )
+                raw_entries = activity.get("activities") or activity.get("data") or []
+                if isinstance(raw_entries, dict):
+                    raw_entries = raw_entries.get("activities") or raw_entries.get("data") or []
+                if isinstance(raw_entries, list):
+                    entries = raw_entries
+            except Exception as exc:
+                print(f"  [WARN] Failed to fetch activity for {addr[:16]}...: {exc}")
+                entries = []
+        if not entries and components.get("use_paper_signals"):
+            entries = _paper_activity_entries(addr, paper_iteration)
+            print(f"  [Paper] Synthetic activity for {addr[:8]}... ({len(entries)} entries)")
+        if not isinstance(entries, list) or not entries:
             continue
 
         score = wallet_scores.get(addr, 50.0)
@@ -674,7 +729,9 @@ def _fetch_signals(components: dict[str, Any]) -> list[TradeSignal]:
                 expires_at = None
                 if traded_at is not None:
                     from datetime import timedelta
-                    expires_at = traded_at + timedelta(seconds=guards.config.max_signal_age_seconds)
+                    # TradeSignal.is_expired() compares against naive utcnow().
+                    traded_naive = traded_at.astimezone(timezone.utc).replace(tzinfo=None)
+                    expires_at = traded_naive + timedelta(seconds=guards.config.max_signal_age_seconds)
 
                 signal = TradeSignal(
                     signal_id=f"auto-{addr[:8]}-{token[:8]}-{int(time.time()*1000)}-{len(all_signals)}",
@@ -951,12 +1008,14 @@ def _log_cycle(result: dict[str, Any]) -> None:
 def _main_loop(components: dict[str, Any], interval: int, monitor_only: bool) -> None:
     """Main loop: fetch signals → execute → wait → repeat."""
     wallet_address = components.get("wallet_address") or _get_wallet_address()
+    paper_mode = bool(components.get("paper_mode"))
     print("=" * 60)
     print("GMGN 全自动跟单机器人")
     print("=" * 60)
     print(f"Wallet: {wallet_address}")
     print(f"Chain: {CHAIN}")
-    print(f"Auto-confirm: ENABLED (FULLY AUTOMATED)")
+    print(f"Trade mode: {components.get('trade_mode')} ({'PAPER — no chain orders' if paper_mode else 'REAL MONEY'})")
+    print(f"Auto-confirm: ENABLED")
     print(f"Follow wallets: {len(components['follow_wallets'])}")
     print(f"Mode: {'Monitor-only' if monitor_only else 'Full auto'}")
     print(f"Interval: {interval}s")
@@ -965,6 +1024,7 @@ def _main_loop(components: dict[str, Any], interval: int, monitor_only: bool) ->
     iteration = 0
     while True:
         iteration += 1
+        components["paper_iteration"] = iteration
         now = datetime.now(timezone.utc).isoformat()
         print(f"\n--- Iteration #{iteration} @ {now} ---")
 
@@ -978,6 +1038,16 @@ def _main_loop(components: dict[str, Any], interval: int, monitor_only: bool) ->
 
             result = _run_cycle(components, signals)
             _log_cycle(result)
+            if paper_mode:
+                snapshot = components["portfolio"].get_snapshot().to_dict()
+                open_count = len(snapshot.get("positions") or [])
+                print(
+                    "[Paper] portfolio "
+                    f"value={snapshot.get('total_value_sol')} "
+                    f"open={open_count} "
+                    f"pnl={snapshot.get('daily_pnl_sol')} "
+                    f"available={snapshot.get('available_sol')}"
+                )
 
         except Exception as exc:
             print(f"[ERROR] Iteration failed: {exc}")
@@ -1021,6 +1091,18 @@ def main() -> int:
         default=None,
         help="Your Solana wallet address (defaults to GMGN_WALLET_ADDRESS env var)",
     )
+    parser.add_argument(
+        "--paper",
+        action="store_true",
+        default=False,
+        help="Force paper/dryrun mode (no chain orders)",
+    )
+    parser.add_argument(
+        "--trade-mode",
+        choices=[TRADE_MODE_DRYRUN, TRADE_MODE_REAL],
+        default=None,
+        help="Override trade mode (defaults to whitelist/env/exposure_state)",
+    )
     args = parser.parse_args()
 
     # Load credentials
@@ -1028,24 +1110,38 @@ def main() -> int:
     api_key = cfg.gmgn_api_key
     private_key = cfg.gmgn_private_key
 
-    if not api_key:
-        print("[ERROR] GMGN_API_KEY not configured. Set env var or config.")
-        return 1
-    if not private_key:
-        print("[ERROR] GMGN private key not found. Ensure ~/.config/gmgn/keypair.pem exists.")
-        return 1
-
     # Load whitelist
     whitelist_path = Path(args.whitelist)
     if not whitelist_path.exists():
         print(f"[ERROR] Whitelist not found: {whitelist_path}")
         return 1
     config = _load_whitelist_config(whitelist_path)
+    trade_mode = TRADE_MODE_DRYRUN if args.paper else args.trade_mode
+    resolved_mode = _resolve_trade_mode(config, trade_mode)
+
+    if resolved_mode == TRADE_MODE_REAL:
+        if not api_key:
+            print("[ERROR] GMGN_API_KEY not configured. Set env var or config.")
+            return 1
+        if not private_key:
+            print("[ERROR] GMGN private key not found. Ensure ~/.config/gmgn/keypair.pem exists.")
+            return 1
+    elif not api_key:
+        print("[Paper] GMGN_API_KEY missing — using synthetic leader activity until API is configured.")
 
     # Initialize components
-    components = _init_components(config, api_key, private_key, wallet_address=args.wallet)
+    components = _init_components(
+        config,
+        api_key,
+        private_key,
+        wallet_address=args.wallet,
+        trade_mode=resolved_mode,
+    )
     components["whitelist_path"] = whitelist_path
-    print(f"[Init] Components loaded: {len(components['follow_wallets'])} follow wallets")
+    print(
+        f"[Init] Components loaded: {len(components['follow_wallets'])} follow wallets "
+        f"(mode={components['trade_mode']})"
+    )
 
     # Run main loop
     _main_loop(components, interval=args.interval, monitor_only=args.monitor_only)
