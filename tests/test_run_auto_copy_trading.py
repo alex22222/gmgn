@@ -134,6 +134,19 @@ def test_sync_buy_executor_portfolio_preserves_shared_positions():
     assert components["buy_executor"]._portfolio.get_snapshot().total_value_sol == 11.0
 
 
+def test_get_follow_wallets_respects_top_level_enabled_false():
+    module = _load_script_module()
+    wallets = module._get_follow_wallets(
+        {
+            "enabled": False,
+            "wallets": [
+                {"wallet_address": "Follow111", "mode": "follow", "enabled": True, "total_score": 90},
+            ],
+        }
+    )
+    assert wallets == []
+
+
 def test_refresh_follow_config_reloads_current_whitelist(tmp_path):
     module = _load_script_module()
     whitelist_path = tmp_path / "wallet_whitelist.json"

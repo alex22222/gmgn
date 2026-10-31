@@ -238,6 +238,8 @@ def _load_whitelist_config(path: Path) -> dict[str, Any]:
 
 def _get_follow_wallets(config: dict[str, Any]) -> list[dict[str, Any]]:
     """Extract wallets with mode='follow' from the whitelist config."""
+    if config.get("enabled") is False:
+        return []
     wallets = config.get("wallets", [])
     return [w for w in wallets if w.get("mode") == "follow" and w.get("enabled", True)]
 
@@ -1116,6 +1118,9 @@ def main() -> int:
         print(f"[ERROR] Whitelist not found: {whitelist_path}")
         return 1
     config = _load_whitelist_config(whitelist_path)
+    if config.get("enabled") is False:
+        print("[Init] copy_trading.enabled=false — copy trading disabled; exiting.")
+        return 0
     trade_mode = TRADE_MODE_DRYRUN if args.paper else args.trade_mode
     resolved_mode = _resolve_trade_mode(config, trade_mode)
 

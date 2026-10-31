@@ -4,7 +4,7 @@
   "exposure_level": "tiny_real",
   "trade_mode": "dryrun",
   "created_at": "2025-07-15T00:00:00+08:00",
-  "updated_at": "2026-10-31T06:50:00+00:00",
+  "updated_at": "2026-10-31T16:32:16.692711+00:00",
   "wallets": [
     {
       "wallet_address": "7cVyqNK6fEq6EGAw1UoyKLy8ni84BanEKkdfj5FvZQBh",
@@ -63,10 +63,10 @@
       ],
       "total_score": 66.56,
       "grade": "C",
-      "copy_weight": 0.173027,
-      "copy_weight_percent": "17.3%",
+      "copy_weight": 0.0,
+      "copy_weight_percent": "0.0%",
       "mode": "follow",
-      "enabled": true,
+      "enabled": false,
       "risk_limits": {
         "max_single_trade_sol": 0.01,
         "max_daily_loss_sol": 0.03,
@@ -156,10 +156,10 @@
       ],
       "total_score": 77.25,
       "grade": "B",
-      "copy_weight": 0.200816,
-      "copy_weight_percent": "20.1%",
+      "copy_weight": 0.0,
+      "copy_weight_percent": "0.0%",
       "mode": "observe",
-      "enabled": true,
+      "enabled": false,
       "risk_limits": {
         "max_single_trade_sol": 0.01,
         "max_daily_loss_sol": 0.03,
@@ -294,10 +294,10 @@
       ],
       "total_score": 85.4,
       "grade": "A",
-      "copy_weight": 0.222003,
-      "copy_weight_percent": "22.2%",
+      "copy_weight": 0.0,
+      "copy_weight_percent": "0.0%",
       "mode": "follow",
-      "enabled": true,
+      "enabled": false,
       "risk_limits": {
         "max_single_trade_sol": 0.01,
         "max_daily_loss_sol": 0.03,
@@ -340,10 +340,10 @@
       ],
       "total_score": 83.37,
       "grade": "A",
-      "copy_weight": 0.216726,
-      "copy_weight_percent": "21.7%",
+      "copy_weight": 0.0,
+      "copy_weight_percent": "0.0%",
       "mode": "follow",
-      "enabled": true,
+      "enabled": false,
       "risk_limits": {
         "max_single_trade_sol": 0.01,
         "max_daily_loss_sol": 0.03,
@@ -386,10 +386,10 @@
       ],
       "total_score": 72.1,
       "grade": "B",
-      "copy_weight": 0.187429,
-      "copy_weight_percent": "18.7%",
+      "copy_weight": 0.0,
+      "copy_weight_percent": "0.0%",
       "mode": "follow",
-      "enabled": true,
+      "enabled": false,
       "risk_limits": {
         "max_single_trade_sol": 0.01,
         "max_daily_loss_sol": 0.03,
@@ -441,7 +441,8 @@
   "weight_calculation": {
     "method": "active_score_normalized",
     "description": "仅对启用且未 paused 的 leader 按 total_score 归一化；暂停 leader 权重为 0",
-    "total_score_sum": 384.68,
+    "total_score_sum": 0,
     "formula": "active_wallet_weight = wallet_score / active_score_sum"
-  }
+  },
+  "enabled": false
 }

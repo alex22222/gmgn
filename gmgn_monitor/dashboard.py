@@ -1969,6 +1969,7 @@ def _read_copy_trading_config(root: Path) -> dict[str, object]:
         if isinstance(wallet, dict) and wallet.get('enabled', True)
     ]
     return {
+        'enabled': config.get('enabled', True) is not False,
         'trade_mode': config.get('trade_mode') or 'dryrun',
         'trade_mode_label': _trade_mode_label(str(config.get('trade_mode') or 'dryrun')),
         'exposure_level': config.get('exposure_level') or 'monitor',
