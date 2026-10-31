@@ -37,6 +37,12 @@ from gmgn_monitor.audit_log import append_audit_event
 from gmgn_monitor.birdeye_client import BirdeyeClient
 from gmgn_monitor.config_manager import ConfigManager
 from gmgn_monitor.copy_sell_handler import CopySellHandler
+from gmgn_monitor.copy_trade_guards import (
+    CopyTradeContext,
+    CopyTradeGuards,
+    demote_leader_in_whitelist,
+    load_copy_trade_guard_config,
+)
 from gmgn_monitor.execution_loop import ExecutionLoopEngine, MarketData
 from gmgn_monitor.gmgn_api_client import GmgnApiClient
 from gmgn_monitor.live_signal_fetcher import LiveSignalFetcher
@@ -57,6 +63,7 @@ from gmgn_monitor.signal_preprocessor import SignalPreprocessor
 # ---------------------------------------------------------------------------
 
 WHITELIST_PATH = _PROJECT_ROOT / "config" / "wallet_whitelist.json"
+GUARD_CONFIG_PATH = _PROJECT_ROOT / "config" / "copy_trade_guards.json"
 DATA_DIR = _PROJECT_ROOT / "data"
 LOG_DIR = DATA_DIR / "auto_copy_logs"
 SELL_COOLDOWN_SECONDS = 30 * 60
@@ -241,24 +248,198 @@ def _build_wallet_scores(follow_wallets: list[dict[str, Any]]) -> dict[str, floa
     }
 
 
-def _build_risk_limits(follow_wallets: list[dict[str, Any]]) -> RiskLimits:
-    """Build RiskLimits from the first wallet's risk config (or defaults)."""
+def _build_risk_limits(
+    follow_wallets: list[dict[str, Any]],
+    global_settings: dict[str, Any] | None = None,
+) -> RiskLimits:
+    """Build RiskLimits with tiny_real-safe defaults (no win-driven size scaling)."""
+    settings = global_settings or {}
+    stop_loss = -40.0
     if follow_wallets:
-        r = follow_wallets[0].get("risk_limits", {})
-        return RiskLimits(
-            daily_loss_limit_percent=5.0,
-            max_single_position_percent=20.0,
-            max_total_positions=3,
-            default_stop_loss_percent=r.get("stop_loss_percent", -40.0),
-            circuit_breaker_cooldown_seconds=600,
-            kill_switch=False,
-        )
+        stop_loss = float(follow_wallets[0].get("risk_limits", {}).get("stop_loss_percent", -40.0))
+    # tiny_real default: 0.03 SOL daily loss on a ~1 SOL working set ≈ 3%.
+    daily_loss_percent = float(settings.get("daily_loss_limit_percent", 3.0) or 3.0)
     return RiskLimits(
-        daily_loss_limit_percent=5.0,
+        daily_loss_limit_percent=daily_loss_percent,
         max_single_position_percent=20.0,
-        max_total_positions=3,
-        default_stop_loss_percent=-40.0,
+        max_total_positions=min(3, int(settings.get("max_total_positions", 3) or 3)),
+        default_stop_loss_percent=stop_loss,
+        circuit_breaker_cooldown_seconds=600,
+        kill_switch=False,
     )
+
+
+def _parse_activity_timestamp(entry: dict[str, Any]) -> datetime | None:
+    raw = entry.get("timestamp") or entry.get("time") or entry.get("block_time") or entry.get("created_at")
+    if raw is None or raw == "":
+        return None
+    if isinstance(raw, (int, float)):
+        value = float(raw)
+        if value > 1_000_000_000_000:
+            value /= 1000.0
+        return datetime.fromtimestamp(value, tz=timezone.utc)
+    text = str(raw).strip()
+    if not text:
+        return None
+    if text.isdigit():
+        return _parse_activity_timestamp({"timestamp": int(text)})
+    try:
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        parsed = datetime.fromisoformat(text)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed
+    except ValueError:
+        return None
+
+
+def _optional_float(value: object) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number
+
+
+def _optional_bool(value: object) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if value is None or value == "":
+        return None
+    if isinstance(value, (int, float)):
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in {"true", "1", "yes", "y"}:
+        return True
+    if text in {"false", "0", "no", "n"}:
+        return False
+    return None
+
+
+def _extract_leader_price(entry: dict[str, Any]) -> float | None:
+    for key in ("price", "price_usd", "token_price", "avg_price"):
+        price = _optional_float(entry.get(key))
+        if price is not None and price > 0:
+            return price
+    token_info = entry.get("token")
+    if isinstance(token_info, dict):
+        for key in ("price", "price_usd"):
+            price = _optional_float(token_info.get(key))
+            if price is not None and price > 0:
+                return price
+    quote = _optional_float(entry.get("quote_amount"))
+    base = _optional_float(entry.get("base_amount") or entry.get("token_amount") or entry.get("amount"))
+    if quote is not None and base is not None and base > 0 and quote > 0:
+        return quote / base
+    return None
+
+
+def _extract_security_flags(entry: dict[str, Any]) -> dict[str, Any]:
+    security = entry.get("security") if isinstance(entry.get("security"), dict) else {}
+    token_info = entry.get("token") if isinstance(entry.get("token"), dict) else {}
+    source = {**token_info, **security, **entry}
+    return {
+        "honeypot_risk": _optional_bool(source.get("honeypot_risk") if "honeypot_risk" in source else source.get("is_honeypot")),
+        "lp_burned_or_locked": _optional_bool(
+            source.get("lp_burned_or_locked")
+            if "lp_burned_or_locked" in source
+            else source.get("is_burna_lp") if "is_burna_lp" in source else source.get("lp_locked")
+        ),
+        "top10_holder_percent": _optional_float(
+            source.get("top10_holder_percent")
+            if "top10_holder_percent" in source
+            else source.get("top_10_holder_rate")
+        ),
+        "mint_authority_active": _optional_bool(
+            source.get("mint_authority_active")
+            if "mint_authority_active" in source
+            else source.get("is_mintable")
+        ),
+        "freeze_authority_active": _optional_bool(
+            source.get("freeze_authority_active")
+            if "freeze_authority_active" in source
+            else source.get("is_freezable")
+        ),
+    }
+
+
+def _build_copy_context(
+    entry: dict[str, Any],
+    *,
+    amount_sol: float,
+    expected_entry_price: float | None = None,
+) -> CopyTradeContext:
+    flags = _extract_security_flags(entry)
+    leader_price = _extract_leader_price(entry)
+    expected = expected_entry_price
+    if expected is None:
+        expected = _optional_float(entry.get("current_price") or entry.get("mark_price"))
+    return CopyTradeContext(
+        leader_entry_price=leader_price,
+        expected_entry_price=expected,
+        leader_traded_at=_parse_activity_timestamp(entry),
+        amount_sol=amount_sol,
+        honeypot_risk=flags["honeypot_risk"],
+        lp_burned_or_locked=flags["lp_burned_or_locked"],
+        top10_holder_percent=flags["top10_holder_percent"],
+        mint_authority_active=flags["mint_authority_active"],
+        freeze_authority_active=flags["freeze_authority_active"],
+    )
+
+
+def _apply_buy_guards(
+    components: dict[str, Any],
+    signals: list[TradeSignal],
+) -> tuple[list[TradeSignal], dict[str, int]]:
+    guards: CopyTradeGuards = components["copy_guards"]
+    contexts: dict[str, CopyTradeContext] = components.setdefault("signal_contexts", {})
+    skipped: dict[str, int] = {}
+    accepted: list[TradeSignal] = []
+    for signal in signals:
+        if signal.signal_type not in ("NEW_POSITION", "ADD_POSITION"):
+            accepted.append(signal)
+            continue
+        context = contexts.get(signal.signal_id) or CopyTradeContext(
+            amount_sol=signal.recommended_amount_sol,
+        )
+        decision = guards.evaluate_buy(signal.wallet_address, context)
+        if not decision.allow:
+            _add_skip(skipped, decision.reason or "guard_block")
+            continue
+        accepted.append(signal)
+    return accepted, skipped
+
+
+def _apply_pending_demotions(components: dict[str, Any]) -> list[dict[str, str]]:
+    guards: CopyTradeGuards = components["copy_guards"]
+    whitelist_path = Path(components.get("whitelist_path") or WHITELIST_PATH)
+    applied: list[dict[str, str]] = []
+    for item in guards.drain_demotions():
+        wallet = item["wallet_address"]
+        reason = item["reason"]
+        changed = demote_leader_in_whitelist(
+            whitelist_path,
+            wallet,
+            reason=reason,
+            demote_mode=guards.config.demote_mode,
+        )
+        if changed:
+            applied.append(item)
+            print(f"[Guard] Demoted leader {wallet[:8]}... ({reason})")
+            _audit_auto_trade(
+                "leader_demote",
+                True,
+                wallet,
+                reason,
+                {"wallet_address": wallet, "reason": reason},
+                category="manual_config",
+            )
+    if applied:
+        _refresh_follow_config(components)
+    return applied
 
 
 def _refresh_follow_config(components: dict[str, Any]) -> list[dict[str, Any]]:
@@ -267,7 +448,8 @@ def _refresh_follow_config(components: dict[str, Any]) -> list[dict[str, Any]]:
     config = _load_whitelist_config(whitelist_path)
     follow_wallets = _get_follow_wallets(config)
     wallet_scores = _build_wallet_scores(follow_wallets)
-    risk_limits = _build_risk_limits(follow_wallets)
+    global_settings = config.get("global_settings") if isinstance(config.get("global_settings"), dict) else {}
+    risk_limits = _build_risk_limits(follow_wallets, global_settings)
 
     old_addresses = _current_follow_wallet_addresses(components)
     components["follow_wallets"] = follow_wallets
@@ -341,7 +523,9 @@ def _init_components(
     wallet_address = wallet_address or _get_wallet_address()
     follow_wallets = _get_follow_wallets(config)
     wallet_scores = _build_wallet_scores(follow_wallets)
-    risk_limits = _build_risk_limits(follow_wallets)
+    global_settings = config.get("global_settings") if isinstance(config.get("global_settings"), dict) else {}
+    risk_limits = _build_risk_limits(follow_wallets, global_settings)
+    copy_guards = CopyTradeGuards(config=load_copy_trade_guard_config(GUARD_CONFIG_PATH))
 
     # Core components
     order_manager = OrderManager()
@@ -411,6 +595,8 @@ def _init_components(
         "loop": loop,
         "signal_fetcher": signal_fetcher,
         "gmgn_client": gmgn_client,
+        "copy_guards": copy_guards,
+        "signal_contexts": {},
         "liquidate_removed_leaders": True,
         "sell_cooldowns": {},
         "copy_sell_seen": {},
@@ -418,10 +604,13 @@ def _init_components(
 
 
 def _fetch_signals(components: dict[str, Any]) -> list[TradeSignal]:
-    """Fetch buy signals from followed wallets."""
+    """Fetch buy/sell signals from followed wallets and attach guard contexts."""
     fetcher = components["signal_fetcher"]
     follow_wallets = components["follow_wallets"]
     wallet_scores = components["wallet_scores"]
+    guards: CopyTradeGuards = components["copy_guards"]
+    contexts: dict[str, CopyTradeContext] = components.setdefault("signal_contexts", {})
+    contexts.clear()
 
     print(f"[Signal] Fetching activity for {len(follow_wallets)} follow wallets...")
 
@@ -468,8 +657,8 @@ def _fetch_signals(components: dict[str, Any]) -> list[TradeSignal]:
 
                 # Build risk config from wallet
                 risk_limits = wallet.get("risk_limits", {})
-                tp_steps = risk_limits.get("take_profit_steps", [])
                 from gmgn_monitor.trade_signal import TPOrder, SLOrder
+                tp_steps = risk_limits.get("take_profit_steps", [])
                 tp_orders = tuple(
                     TPOrder(level=i + 1, trigger_percent=s["price_change_percent"], sell_percent=s["sell_percent"])
                     for i, s in enumerate(tp_steps)
@@ -479,22 +668,32 @@ def _fetch_signals(components: dict[str, Any]) -> list[TradeSignal]:
                     sell_percent=100.0,
                 )
 
+                wallet_cap = float(risk_limits.get("max_single_trade_sol", 0.005) or 0.005)
+                sized_amount = min(amount, wallet_cap, guards.config.max_single_trade_sol)
+                traded_at = _parse_activity_timestamp(entry)
+                expires_at = None
+                if traded_at is not None:
+                    from datetime import timedelta
+                    expires_at = traded_at + timedelta(seconds=guards.config.max_signal_age_seconds)
+
                 signal = TradeSignal(
-                    signal_id=f"auto-{addr[:8]}-{token[:8]}-{int(time.time())}",
+                    signal_id=f"auto-{addr[:8]}-{token[:8]}-{int(time.time()*1000)}-{len(all_signals)}",
                     wallet_address=addr,
                     target_token=token,
                     signal_type=signal_type,
                     urgency_score=int(min(100.0, score)),
                     confidence_score=70,
                     quality_score=int(min(100.0, score)),
-                    recommended_amount_sol=min(amount, risk_limits.get("max_single_trade_sol", 0.005)),
+                    recommended_amount_sol=sized_amount,
                     max_slippage_percent=risk_limits.get("slippage_percent", 2.0),
                     priority_fee_sol=0.01,
                     mev_protection="SECURE",
                     tp_orders=tp_orders,
                     sl_order=sl_order,
+                    expires_at=expires_at,
                     chain=CHAIN,
                 )
+                contexts[signal.signal_id] = _build_copy_context(entry, amount_sol=sized_amount)
                 all_signals.append(signal)
             except (ValueError, TypeError, KeyError):
                 continue
@@ -503,9 +702,27 @@ def _fetch_signals(components: dict[str, Any]) -> list[TradeSignal]:
     return all_signals
 
 
+def _record_leader_pnl(
+    components: dict[str, Any],
+    wallet_address: str,
+    token_address: str,
+) -> None:
+    """Record realized-ish PnL for consecutive-loss demotion using open mark."""
+    if not wallet_address:
+        return
+    portfolio: PortfolioTracker = components["portfolio"]
+    position = portfolio.get_position(token_address)
+    if position is None:
+        return
+    pnl = float(getattr(position, "unrealized_pnl_sol", 0.0) or 0.0)
+    guards: CopyTradeGuards = components["copy_guards"]
+    guards.record_copy_outcome(wallet_address, pnl)
+
+
 def _run_cycle(components: dict[str, Any], signals: list[TradeSignal]) -> dict[str, Any]:
-    """Run one full execution cycle (buy + sell)."""
+    """Run one full execution cycle: sells first, then guarded buys."""
     signals = _filter_current_follow_signals(components, signals)
+    buy_signals, buy_guard_skips = _apply_buy_guards(components, signals)
     loop = components["loop"]
     buy_executor = components["buy_executor"]
     sell_executor = components["sell_executor"]
@@ -514,130 +731,73 @@ def _run_cycle(components: dict[str, Any], signals: list[TradeSignal]) -> dict[s
     copy_sell_handler = components["copy_sell_handler"]
     portfolio = components["portfolio"]
     wallet_scores = components["wallet_scores"]
+    guards: CopyTradeGuards = components["copy_guards"]
 
-    # The buy executor performs its own final risk check. Keep its view aligned
-    # with the shared portfolio before the loop adds tentative positions.
-    _sync_buy_executor_portfolio(components)
-
-    # Step 1: signal filtering and decision-making
-    result = loop.run_cycle(signals, wallet_scores)
-
-    # Step 2: execute real buy trades for each created order
-    buy_executed = []
-    for order_info in result.get("orders_created", []):
-        signal = next((s for s in signals if s.signal_id == order_info.get("signal_id")), None)
-        if signal is None:
-            continue
-        try:
-            trade_result = buy_executor.execute_trade(signal)
-            buy_executed.append({
-                "order_id": order_info.get("order_id"),
-                "signal_id": signal.signal_id,
-                "token": signal.target_token,
-                "success": trade_result.success,
-                "tx_hash": trade_result.tx_hash,
-                "error": trade_result.error_message,
-            })
-            if not trade_result.success:
-                _cleanup_failed_buy(components, signal.target_token)
-            _audit_auto_trade(
-                "auto_buy",
-                bool(trade_result.success),
-                signal.target_token,
-                str(trade_result.error_message or "自动买入已提交"),
-                {
-                    "order_id": order_info.get("order_id"),
-                    "tx_hash": trade_result.tx_hash,
-                    "signal": _signal_details(signal),
-                    "error": trade_result.error_message,
-                },
-            )
-            print(f"  [Buy] {signal.target_token[:8]}... success={trade_result.success} tx={trade_result.tx_hash}")
-        except Exception as exc:
-            print(f"  [Buy ERROR] {signal.target_token[:8]}...: {exc}")
-            buy_executed.append({
-                "order_id": order_info.get("order_id"),
-                "signal_id": signal.signal_id,
-                "token": signal.target_token,
-                "success": False,
-                "error": str(exc),
-            })
-            _cleanup_failed_buy(components, signal.target_token)
-            _audit_auto_trade(
-                "auto_buy",
-                False,
-                signal.target_token,
-                str(exc),
-                {
-                    "order_id": order_info.get("order_id"),
-                    "signal": _signal_details(signal),
-                    "error": str(exc),
-                },
-            )
-
-    # Step 3: update position prices (skip if no positions)
-    price_updates = []
+    # Step 1: refresh marks so sell decisions and PnL demotion use current prices.
     if position_monitor and portfolio.list_positions():
         try:
-            price_updates = position_monitor.update_portfolio_prices(portfolio)
+            position_monitor.update_portfolio_prices(portfolio)
         except Exception as exc:
             print(f"  [Price Monitor ERROR] {exc}")
 
-    # Step 4: copy-sell signal handling (EXIT / REDUCE)
+    # Step 2: copy-sell first so exits beat new entries.
     copy_sell_results = []
     copy_sell_skipped_summary: dict[str, int] = {}
     if copy_sell_handler:
         for signal in signals:
-            if signal.signal_type in ("EXIT", "REDUCE"):
-                cooldown_reason = _sell_cooldown_reason(components, signal.target_token)
-                if cooldown_reason is not None:
-                    _add_skip(copy_sell_skipped_summary, cooldown_reason)
-                    continue
-                if _copy_sell_seen(components, signal):
-                    _add_skip(copy_sell_skipped_summary, "duplicate_signal")
-                    continue
-                try:
-                    sell_result = copy_sell_handler.handle_signal(signal)
-                    if sell_result:
-                        result_payload = sell_result.to_dict()
-                        _handle_sell_result_cleanup(
-                            components,
-                            signal.target_token,
-                            bool(sell_result.success),
-                            sell_result.error_message,
-                            100.0 if signal.signal_type == "EXIT" else 50.0,
-                        )
-                        copy_sell_results.append({
-                            "signal": _signal_details(signal),
-                            "result": result_payload,
-                        })
-                        _audit_auto_trade(
-                            "auto_copy_sell",
-                            bool(sell_result.success),
-                            signal.target_token,
-                            str(sell_result.error_message or "自动跟卖已处理"),
-                            {
-                                "signal": _signal_details(signal),
-                                "result": result_payload,
-                            },
-                            category="copy_trade",
-                        )
-                        print(f"  [Copy Sell] {signal.target_token[:8]}... success={sell_result.success}")
-                except Exception as exc:
-                    print(f"  [Copy Sell ERROR] {signal.target_token[:8]}...: {exc}")
+            if signal.signal_type not in ("EXIT", "REDUCE"):
+                continue
+            cooldown_reason = _sell_cooldown_reason(components, signal.target_token)
+            if cooldown_reason is not None:
+                _add_skip(copy_sell_skipped_summary, cooldown_reason)
+                continue
+            if _copy_sell_seen(components, signal):
+                _add_skip(copy_sell_skipped_summary, "duplicate_signal")
+                continue
+            try:
+                if signal.signal_type == "EXIT":
+                    _record_leader_pnl(components, signal.wallet_address, signal.target_token)
+                sell_result = copy_sell_handler.handle_signal(signal)
+                if sell_result:
+                    result_payload = sell_result.to_dict()
+                    _handle_sell_result_cleanup(
+                        components,
+                        signal.target_token,
+                        bool(sell_result.success),
+                        sell_result.error_message,
+                        100.0 if signal.signal_type == "EXIT" else 50.0,
+                    )
+                    copy_sell_results.append({
+                        "signal": _signal_details(signal),
+                        "result": result_payload,
+                    })
                     _audit_auto_trade(
                         "auto_copy_sell",
-                        False,
+                        bool(sell_result.success),
                         signal.target_token,
-                        str(exc),
+                        str(sell_result.error_message or "自动跟卖已处理"),
                         {
                             "signal": _signal_details(signal),
-                            "error": str(exc),
+                            "result": result_payload,
                         },
                         category="copy_trade",
                     )
+                    print(f"  [Copy Sell] {signal.target_token[:8]}... success={sell_result.success}")
+            except Exception as exc:
+                print(f"  [Copy Sell ERROR] {signal.target_token[:8]}...: {exc}")
+                _audit_auto_trade(
+                    "auto_copy_sell",
+                    False,
+                    signal.target_token,
+                    str(exc),
+                    {
+                        "signal": _signal_details(signal),
+                        "error": str(exc),
+                    },
+                    category="copy_trade",
+                )
 
-    # Step 5: TP / SL trigger detection and execution
+    # Step 3: TP / SL trigger detection and execution
     sell_signals = []
     sell_results = []
     if sell_trigger and portfolio.list_positions():
@@ -684,19 +844,82 @@ def _run_cycle(components: dict[str, Any], signals: list[TradeSignal]) -> dict[s
                     },
                 )
 
-    # Log summary
+    demotions = _apply_pending_demotions(components)
+
+    # Step 4: guarded buys only after exits.
+    _sync_buy_executor_portfolio(components)
+    result = loop.run_cycle(buy_signals, wallet_scores)
+
+    buy_executed = []
+    for order_info in result.get("orders_created", []):
+        signal = next((s for s in buy_signals if s.signal_id == order_info.get("signal_id")), None)
+        if signal is None:
+            continue
+        try:
+            trade_result = buy_executor.execute_trade(signal)
+            buy_executed.append({
+                "order_id": order_info.get("order_id"),
+                "signal_id": signal.signal_id,
+                "token": signal.target_token,
+                "success": trade_result.success,
+                "tx_hash": trade_result.tx_hash,
+                "error": trade_result.error_message,
+            })
+            if trade_result.success:
+                guards.reserve_exposure(signal.wallet_address, signal.recommended_amount_sol)
+            else:
+                _cleanup_failed_buy(components, signal.target_token)
+            _audit_auto_trade(
+                "auto_buy",
+                bool(trade_result.success),
+                signal.target_token,
+                str(trade_result.error_message or "自动买入已提交"),
+                {
+                    "order_id": order_info.get("order_id"),
+                    "tx_hash": trade_result.tx_hash,
+                    "signal": _signal_details(signal),
+                    "error": trade_result.error_message,
+                },
+            )
+            print(f"  [Buy] {signal.target_token[:8]}... success={trade_result.success} tx={trade_result.tx_hash}")
+        except Exception as exc:
+            print(f"  [Buy ERROR] {signal.target_token[:8]}...: {exc}")
+            buy_executed.append({
+                "order_id": order_info.get("order_id"),
+                "signal_id": signal.signal_id,
+                "token": signal.target_token,
+                "success": False,
+                "error": str(exc),
+            })
+            _cleanup_failed_buy(components, signal.target_token)
+            _audit_auto_trade(
+                "auto_buy",
+                False,
+                signal.target_token,
+                str(exc),
+                {
+                    "order_id": order_info.get("order_id"),
+                    "signal": _signal_details(signal),
+                    "error": str(exc),
+                },
+            )
+
     print(f"[Cycle] Buy signals: {result['processed_count']}")
+    print(f"[Cycle] Buy guards skipped: {sum(buy_guard_skips.values())} {buy_guard_skips}")
     print(f"[Cycle] Orders created: {len(result['orders_created'])}")
     print(f"[Cycle] Buy executed: {len([b for b in buy_executed if b['success']])}/{len(buy_executed)}")
     print(f"[Cycle] Copy sells: {len(copy_sell_results)} executed, {sum(copy_sell_skipped_summary.values())} skipped")
     print(f"[Cycle] TP/SL sells: {len(sell_results)}")
+    print(f"[Cycle] Leader demotions: {len(demotions)}")
     print(f"[Cycle] Duration: {result['cycle_duration_ms']:.0f} ms")
 
     result["buy_executed"] = buy_executed
+    result["buy_guard_skips"] = buy_guard_skips
     result["copy_sell_results"] = copy_sell_results
     result["copy_sell_skipped_summary"] = copy_sell_skipped_summary
     result["sell_signals"] = sell_signals
     result["sell_results"] = sell_results
+    result["leader_demotions"] = demotions
     return result
 
 
@@ -711,12 +934,14 @@ def _log_cycle(result: dict[str, Any]) -> None:
         "orders_created": len(result.get("orders_created", [])),
         "orders": result.get("orders_created", []),
         "buy_executed": result.get("buy_executed", []),
+        "buy_guard_skips": result.get("buy_guard_skips", {}),
         "copy_sell_results": result.get("copy_sell_results", []),
         "copy_sell_skipped_summary": result.get("copy_sell_skipped_summary", {}),
         "sell_signals": len(result.get("sell_signals", [])),
         "sell_signal_details": result.get("sell_signals", []),
         "sell_results": len(result.get("sell_results", [])),
         "sell_result_details": result.get("sell_results", []),
+        "leader_demotions": result.get("leader_demotions", []),
         "cycle_duration_ms": result.get("cycle_duration_ms", 0),
     }
     with open(log_path, "a", encoding="utf-8") as f:

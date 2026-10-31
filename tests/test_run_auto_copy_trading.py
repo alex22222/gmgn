@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from gmgn_monitor.copy_trade_guards import CopyTradeContext, CopyTradeGuardConfig, CopyTradeGuards
 from gmgn_monitor.portfolio_tracker import PortfolioTracker
 from gmgn_monitor.sell_trigger import SellTrigger
 from gmgn_monitor.trade_signal import TradeSignal
@@ -225,3 +227,63 @@ def test_filter_current_follow_signals_drops_removed_leader():
         components,
         [current_signal, stale_signal],
     ) == [current_signal]
+
+
+class AutoCopyGuardWiringTests(unittest.TestCase):
+    def test_apply_buy_guards_skips_chase_premium(self) -> None:
+        module = _load_script_module()
+        signal = TradeSignal(
+            signal_id="sig-chase",
+            wallet_address="Leader111",
+            target_token="Token111",
+            signal_type="NEW_POSITION",
+            urgency_score=70,
+            confidence_score=70,
+            quality_score=70,
+            recommended_amount_sol=0.01,
+        )
+        sell_signal = TradeSignal(
+            signal_id="sig-sell",
+            wallet_address="Leader111",
+            target_token="Token111",
+            signal_type="EXIT",
+            urgency_score=70,
+            confidence_score=70,
+            quality_score=70,
+            recommended_amount_sol=0.01,
+        )
+        components = {
+            "copy_guards": CopyTradeGuards(CopyTradeGuardConfig(max_chase_percent=15.0)),
+            "signal_contexts": {
+                "sig-chase": CopyTradeContext(
+                    leader_entry_price=0.001,
+                    expected_entry_price=0.0016,
+                    amount_sol=0.01,
+                )
+            },
+        }
+
+        accepted, skipped = module._apply_buy_guards(components, [signal, sell_signal])
+
+        self.assertEqual(accepted, [sell_signal])
+        self.assertEqual(skipped, {"chase_premium": 1})
+
+    def test_build_copy_context_from_activity_entry(self) -> None:
+        module = _load_script_module()
+        context = module._build_copy_context(
+            {
+                "price": 0.002,
+                "current_price": 0.0022,
+                "timestamp": "2026-10-31T06:00:00+00:00",
+                "honeypot_risk": False,
+                "lp_locked": True,
+                "top10_holder_percent": 12.5,
+            },
+            amount_sol=0.01,
+        )
+        self.assertEqual(context.leader_entry_price, 0.002)
+        self.assertEqual(context.expected_entry_price, 0.0022)
+        self.assertIs(context.honeypot_risk, False)
+        self.assertIs(context.lp_burned_or_locked, True)
+        self.assertEqual(context.top10_holder_percent, 12.5)
+
