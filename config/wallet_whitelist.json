@@ -438,7 +438,7 @@
     "feishu_alert_enabled": true,
     "auto_confirm": false,
     "copy_trading_enabled": true,
-    "paper_lookback_days": 30,
+    "risk_profile": "config/copy_risk.json",
     "paper_signal_source": "gmgn-cli portfolio activity"
   },
   "weight_calculation": {

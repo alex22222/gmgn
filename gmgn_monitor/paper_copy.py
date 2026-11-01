@@ -10,12 +10,13 @@ import re
 import shutil
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from .copy_risk import CopyRiskProfile, load_copy_risk
 from .portfolio_tracker import PortfolioTracker
 from .real_trade_executor import ExecutionResult
 from .risk_manager import RiskCheckResult, RiskLimits, RiskManager
@@ -111,17 +112,11 @@ def copy_trading_enabled(config: dict[str, Any]) -> bool:
     return bool(settings.get("copy_trading_enabled"))
 
 
-def paper_lookback(config: dict[str, Any]) -> timedelta:
-    settings = config.get("global_settings")
-    days = DEFAULT_LOOKBACK_DAYS
-    if isinstance(settings, dict):
-        raw = settings.get("paper_lookback_days", DEFAULT_LOOKBACK_DAYS)
-        try:
-            days = float(raw)
-        except (TypeError, ValueError):
-            days = DEFAULT_LOOKBACK_DAYS
-    if days <= 0:
-        days = DEFAULT_LOOKBACK_DAYS
+def paper_lookback(config: dict[str, Any] | None = None, profile: CopyRiskProfile | None = None) -> timedelta:
+    """Report window for leader activity. Execution uses a shorter age gate."""
+    del config
+    active = profile or load_copy_risk()
+    days = active.report_lookback_days if active.report_lookback_days > 0 else DEFAULT_LOOKBACK_DAYS
     return timedelta(days=days)
 
 
@@ -333,6 +328,36 @@ def select_leader_signals(
     return observed
 
 
+def split_executable_signals(
+    observed: list[ObservedLeaderSignal],
+    profile: CopyRiskProfile,
+    *,
+    now: datetime | None = None,
+) -> tuple[list[ObservedLeaderSignal], list[dict[str, Any]]]:
+    """Keep only trades inside the copy age gate, and cap new buys per day.
+
+    Older trades stay visible as observations. They are not sent to CSS.
+    """
+    moment = now or _utc_now()
+    max_age = timedelta(minutes=profile.max_signal_age_minutes)
+    executable: list[ObservedLeaderSignal] = []
+    held_back: list[dict[str, Any]] = []
+    buy_count = 0
+    for item in observed:
+        age = moment - item.event_time
+        if age > max_age:
+            held_back.append({**item.to_dict(), "hold_reason": "stale"})
+            continue
+        if item.signal.signal_type == "NEW_POSITION" and buy_count >= profile.max_daily_trades:
+            held_back.append({**item.to_dict(), "hold_reason": "max_daily_trades"})
+            continue
+        if item.signal.signal_type == "NEW_POSITION":
+            buy_count += 1
+        refreshed = replace(item.signal, received_at=_naive_utc(moment))
+        executable.append(replace(item, signal=refreshed))
+    return executable, held_back
+
+
 def fetch_wallet_activity(
     wallet_address: str,
     *,
@@ -380,10 +405,13 @@ def collect_leader_signals(
     now: datetime | None = None,
     sleeper: Any = time.sleep,
     activity_loader: Any = None,
+    profile: CopyRiskProfile | None = None,
 ) -> tuple[list[ObservedLeaderSignal], list[dict[str, Any]]]:
     """Fetch each enabled leader once, waiting out a single rate-limit window."""
+    del config
     loader = activity_loader or fetch_wallet_activity
-    lookback = paper_lookback(config)
+    active = profile or load_copy_risk()
+    lookback = paper_lookback(profile=active)
     moment = now or _utc_now()
     observed: list[ObservedLeaderSignal] = []
     notes: list[dict[str, Any]] = []
@@ -393,6 +421,24 @@ def collect_leader_signals(
         address = str(wallet.get("wallet_address") or "")
         if not address:
             continue
+        score = _as_float(wallet.get("total_score"))
+        if score < active.min_leader_score:
+            notes.append({
+                "wallet_address": address,
+                "label": wallet.get("label") or "",
+                "status": "below_score",
+                "total_score": score,
+                "min_leader_score": active.min_leader_score,
+            })
+            continue
+        sized = dict(wallet)
+        limits = dict(sized.get("risk_limits") or {})
+        wallet_cap = _as_float(limits.get("max_single_trade_sol")) or active.max_single_trade_sol
+        limits["max_single_trade_sol"] = min(wallet_cap, active.max_single_trade_sol)
+        slippage = _as_float(limits.get("slippage_percent")) or active.default_slippage_percent
+        limits["slippage_percent"] = min(slippage, active.max_slippage_percent)
+        sized["risk_limits"] = limits
+        wallet = sized
         activities: list[dict[str, Any]] | None = None
         error = ""
         for attempt in range(2):
@@ -455,18 +501,31 @@ class PaperBuyExecutor:
         self,
         portfolio: PortfolioTracker | None = None,
         risk_limits: RiskLimits | None = None,
+        copy_risk: CopyRiskProfile | None = None,
     ) -> None:
+        self._copy_risk = copy_risk or load_copy_risk()
         self._portfolio = portfolio or PortfolioTracker(initial_balance_sol=10.0)
-        self._risk_limits = risk_limits or RiskLimits(
-            daily_loss_limit_percent=5.0,
-            max_single_position_percent=20.0,
-            max_total_positions=3,
-            default_stop_loss_percent=-40.0,
-        )
+        self._risk_limits = risk_limits or self._copy_risk.to_risk_limits()
         self._risk_manager = RiskManager(self._risk_limits)
 
     def execute_trade(self, signal: TradeSignal) -> ExecutionResult:
         snapshot = self._portfolio.get_snapshot()
+        blocked = self._copy_risk.order_block_reason(
+            signal.recommended_amount_sol,
+            snapshot.daily_pnl_sol,
+            signal.max_slippage_percent,
+        )
+        if blocked:
+            return ExecutionResult(
+                success=False,
+                trade_execution=None,
+                order_id=None,
+                tx_hash=None,
+                error_message=blocked,
+                gas_cost_sol=0.0,
+                actual_slippage_percent=0.0,
+                confirmation_time_ms=0.0,
+            )
         risk_result = self._risk_manager.check_trade(
             signal=signal,
             current_portfolio_value=snapshot.total_value_sol,
