@@ -4927,7 +4927,7 @@ INDEX_HTML = r'''<!doctype html>
       const scoreNotice = document.getElementById('whitelistScoreNotice');
       const lowCount = scoreReport.low_score_count || 0;
       const risk = copyConfig.risk_gates || {};
-      const riskLine = risk.max_single_trade_sol == null ? '' : ` 跟单门槛：单笔 ≤ ${risk.max_single_trade_sol} SOL，日亏 ≤ ${risk.max_daily_loss_sol} SOL，持仓 ≤ ${risk.max_positions}，滑点 ≤ ${risk.max_slippage_percent}%，信号 ${risk.max_signal_age_minutes} 分钟内，leader 分 ≥ ${risk.min_leader_score}。`;
+      const riskLine = risk.max_single_trade_sol == null ? '' : ` 跟单门槛：单笔 ≤ ${risk.max_single_trade_sol} SOL，日亏 ≤ ${risk.max_daily_loss_sol} SOL，持仓 ≤ ${risk.max_positions}，滑点 ≤ ${risk.max_slippage_percent}%，信号 ${risk.max_signal_age_minutes} 分钟内，leader 分 ≥ ${risk.min_leader_score}，CSS 通过 ≥ ${risk.css_pass_score}（观察 ≥ ${risk.css_watch_score}）。`;
       scoreNotice.textContent = `白名单评分每 3 小时刷新；最近评分 ${formatTimestamp(scoreReport.generated_at) || '未生成'}；下次 ${formatTimestamp(scoreReport.next_run_at) || '待定'}。${lowCount ? `发现 ${lowCount} 个低分钱包，请人工复核。` : '当前未发现低分钱包。'}${riskLine}`;
       scoreNotice.classList.toggle('visible', true);
       const body = document.getElementById('whitelistWallets');

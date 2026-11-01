@@ -1,3 +1,5 @@
+import unittest
+
 import pytest
 from datetime import datetime, timedelta, timezone
 from gmgn_monitor.css_engine import (
@@ -134,6 +136,65 @@ class TestCSSEngineEvaluate:
         assert result.is_pass is (result.decision == CSSDecision.PASS)
         assert result.is_watch is (result.decision == CSSDecision.WATCH)
         assert result.is_reject is (result.decision == CSSDecision.REJECT)
+
+
+class TestCSSEngineOrderLines(unittest.TestCase):
+    def test_default_lines_stay_70_and_50(self):
+        engine = CSSEngine(CSSWeights(1.0, 0.0, 0.0, 0.0, 0.0))
+        self.assertEqual(engine.pass_score, 70.0)
+        self.assertEqual(engine.watch_score, 50.0)
+        watched = engine.evaluate(
+            signal=_make_signal(),
+            wallet_score=69.9,
+            token_risk=_make_token_risk(),
+            market=_make_market(),
+            account=_make_account(can_trade=True),
+            momentum=_make_momentum(),
+        )
+        passed = engine.evaluate(
+            signal=_make_signal(),
+            wallet_score=70.0,
+            token_risk=_make_token_risk(),
+            market=_make_market(),
+            account=_make_account(can_trade=True),
+            momentum=_make_momentum(),
+        )
+        self.assertEqual(watched.decision, CSSDecision.WATCH)
+        self.assertEqual(passed.decision, CSSDecision.PASS)
+
+    def test_custom_lines_split_pass_watch_and_reject(self):
+        engine = CSSEngine(CSSWeights(1.0, 0.0, 0.0, 0.0, 0.0), pass_score=60, watch_score=45)
+        passed = engine.evaluate(
+            signal=_make_signal(),
+            wallet_score=60.0,
+            token_risk=_make_token_risk(),
+            market=_make_market(),
+            account=_make_account(can_trade=True),
+            momentum=_make_momentum(),
+        )
+        watched = engine.evaluate(
+            signal=_make_signal(),
+            wallet_score=59.9,
+            token_risk=_make_token_risk(),
+            market=_make_market(),
+            account=_make_account(can_trade=True),
+            momentum=_make_momentum(),
+        )
+        rejected = engine.evaluate(
+            signal=_make_signal(),
+            wallet_score=44.9,
+            token_risk=_make_token_risk(),
+            market=_make_market(),
+            account=_make_account(can_trade=True),
+            momentum=_make_momentum(),
+        )
+        self.assertEqual(passed.decision, CSSDecision.PASS)
+        self.assertEqual(watched.decision, CSSDecision.WATCH)
+        self.assertEqual(rejected.decision, CSSDecision.REJECT)
+
+    def test_inverted_lines_raise(self):
+        with self.assertRaises(ValueError):
+            CSSEngine(pass_score=40, watch_score=50)
 
 
 class TestTokenRiskNormalization:

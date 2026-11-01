@@ -348,7 +348,10 @@ def _init_components(
     portfolio = PortfolioTracker(initial_balance_sol=10.0)
     risk_manager = RiskManager(risk_limits)
     copy_risk = load_copy_risk()
-    css_engine = CSSEngine()
+    css_engine = CSSEngine(
+        pass_score=copy_risk.css_pass_score,
+        watch_score=copy_risk.css_watch_score,
+    )
     preprocessor = SignalPreprocessor(
         min_confidence=copy_risk.min_signal_quality,
         min_wallet_score=copy_risk.min_leader_score,
@@ -551,6 +554,7 @@ def _fetch_paper_signals(components: dict[str, Any]) -> list[TradeSignal]:
         f"executable {len(executable)}, held back {len(held_back)} "
         f"(max age {profile.max_signal_age_minutes}m, "
         f"leader score >= {profile.min_leader_score:g}, "
+        f"CSS pass >= {profile.css_pass_score:g}, "
         f"size <= {profile.max_single_trade_sol} SOL)"
     )
     return [item.signal for item in executable]
@@ -821,6 +825,12 @@ def _main_loop(components: dict[str, Any], interval: int, monitor_only: bool) ->
     print(f"Follow wallets: {len(components['follow_wallets'])}")
     if trade_mode == "paper":
         print("Execution: paper fills only; gmgn-cli reads leader activity and no swap is submitted")
+    profile = components.get("copy_risk")
+    if profile is not None:
+        print(
+            f"Order line: CSS pass >= {profile.css_pass_score:g}, "
+            f"watch >= {profile.css_watch_score:g}"
+        )
     print(f"Mode: {'Monitor-only' if monitor_only else trade_mode}")
     print(f"Interval: {interval}s")
     print("=" * 60)
