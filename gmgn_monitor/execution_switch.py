@@ -88,8 +88,8 @@ class ExecutionSwitch:
 
         # 1. Environment variable
         env = os.environ.get(_DEFAULT_ENV_KEY, "").strip().lower()
-        if env in (TRADE_MODE_DRYRUN, TRADE_MODE_REAL):
-            return env
+        if env in (TRADE_MODE_DRYRUN, TRADE_MODE_REAL, "paper", "dry_run"):
+            return _validate_mode(env)
 
         # 2. Config file
         try:
@@ -141,9 +141,11 @@ def get_executor(
 
 def _validate_mode(mode: str) -> str:
     mode = str(mode).strip().lower()
-    if mode not in (TRADE_MODE_DRYRUN, TRADE_MODE_REAL):
-        raise ValueError(
-            f"Invalid trade mode: {mode!r}. "
-            f"Expected one of: {TRADE_MODE_DRYRUN!r}, {TRADE_MODE_REAL!r}."
-        )
-    return mode
+    if mode in ("paper", "dry_run", TRADE_MODE_DRYRUN):
+        return TRADE_MODE_DRYRUN
+    if mode == TRADE_MODE_REAL:
+        return mode
+    raise ValueError(
+        f"Invalid trade mode: {mode!r}. "
+        f"Expected one of: 'paper', {TRADE_MODE_DRYRUN!r}, {TRADE_MODE_REAL!r}."
+    )

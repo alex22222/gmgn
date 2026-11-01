@@ -2960,6 +2960,7 @@ def _first_wallet_limit(config: dict[str, object], key: str) -> object:
 
 def _trade_mode_label(mode: str) -> str:
     labels = {
+        'paper': 'Paper（真实信号，模拟成交）',
         'dryrun': 'Dry Run（安全模拟）',
         'dry_run': 'Dry Run（安全模拟）',
         'real': 'Real（小额真实配置）',
@@ -2991,6 +2992,8 @@ def _exposure_level_label(level: str) -> str:
 
 
 def _trade_mode_note(mode: str, source: str) -> str:
+    if mode == 'paper':
+        return f'来自 {source}；读取真实 leader 成交，只做模拟跟单，不会提交链上交易。'
     if mode in ('dryrun', 'dry_run'):
         return f'来自 {source}；只生成计划和报告，不会真实下单。'
     if mode == 'real':
@@ -4213,6 +4216,7 @@ INDEX_HTML = r'''<!doctype html>
     }
 
     function translateMode(mode) {
+      if (mode === 'paper') return 'Paper（真实信号，模拟成交）';
       if (mode === 'dryrun' || mode === 'dry_run') return 'Dry Run（安全模拟）';
       if (mode === 'real') return '真实模式';
       return mode || '未知';
