@@ -41,7 +41,7 @@ from gmgn_monitor.dashboard import (
     make_handler,
     run_action,
 )
-from gmgn_monitor.leader_pool import backtest_leaders, discover_leaders, promote_leaders, score_leaders
+from gmgn_monitor.leader_pool import backtest_leaders, discover_leaders, promote_leaders, rescore_copy_leaders, score_leaders
 import gmgn_monitor.leader_pool as leader_pool_module
 
 
@@ -477,6 +477,112 @@ class DashboardTest(unittest.TestCase):
         self.assertIn('评分偏低', config['wallets'][1]['score_warning'])
         self.assertEqual(report['interval_seconds'], 10800)
         self.assertEqual(report['low_score_count'], 1)
+
+    def test_whitelist_score_keeps_engine_total_when_dimensions_are_higher(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / 'config').mkdir()
+            (root / 'config/wallet_whitelist.json').write_text(json.dumps({
+                'wallets': [{
+                    'wallet_address': 'LeaderLow',
+                    'label': 'beta',
+                    'total_score': 53.4,
+                    'grade': 'B',
+                    'dimension_scores': {'profitability': 90.0, 'win_rate': 90.0, 'activity': 90.0},
+                    'enabled': True,
+                }],
+            }), encoding='utf-8')
+
+            config = _read_copy_trading_config(root)
+
+        wallet = config['wallets'][0]
+        self.assertEqual(wallet['total_score'], 53.4)
+        self.assertEqual(wallet['grade'], 'D')
+        self.assertEqual(wallet['score_status'], 'low')
+        self.assertIn('评分偏低', wallet['score_warning'])
+
+    def test_rescore_copy_leaders_writes_engine_score_from_best_window(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / 'config').mkdir()
+            (root / 'config/wallet_whitelist.json').write_text(json.dumps({
+                'wallets': [{
+                    'wallet_address': 'LeaderA',
+                    'label': 'alpha',
+                    'enabled': True,
+                    'mode': 'follow',
+                    'total_score': 53.4,
+                    'grade': 'D',
+                    'dimension_scores': {'profitability': 90.0, 'win_rate': 90.0},
+                }],
+            }), encoding='utf-8')
+            fetcher = FakeLeaderFetcher(stats_by_period={
+                '30d': {
+                    'LeaderA': {
+                        'wallet_address': 'LeaderA',
+                        'total_profit': 60000,
+                        'win_rate': 72,
+                        'total_trades': 160,
+                        'trades_7d': 40,
+                        'trades_30d': 160,
+                        'avg_holding_time': 30,
+                        'pnl_30d': 20000,
+                        'max_drawdown': 18,
+                    },
+                },
+            })
+
+            result = rescore_copy_leaders(root, windows=['7d', '30d'], fetcher=fetcher)
+            saved = json.loads((root / 'config/wallet_whitelist.json').read_text(encoding='utf-8'))
+
+        wallet = saved['wallets'][0]
+        score = float(wallet['total_score'])
+        self.assertEqual(result['failed'], [])
+        self.assertEqual(result['updated_count'], 1)
+        self.assertNotEqual(score, 53.4)
+        self.assertNotEqual(score, 90.0)
+        self.assertEqual(wallet['stats_snapshot']['period'], '30d')
+        self.assertEqual(wallet['grade'], 'A' if score >= 80 else 'B' if score >= 70 else 'C' if score >= 60 else 'D' if score >= 40 else 'E')
+        self.assertEqual(wallet['copy_weight'], 1.0)
+        self.assertIn('async function readJson', INDEX_HTML)
+
+    def test_rescore_does_not_treat_30d_trades_as_a_7d_bot_burst(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / 'config').mkdir()
+            (root / 'config/wallet_whitelist.json').write_text(json.dumps({
+                'wallets': [{
+                    'wallet_address': 'LeaderBusy',
+                    'label': 'busy',
+                    'enabled': True,
+                    'mode': 'follow',
+                    'total_score': 10,
+                    'grade': 'E',
+                }],
+            }), encoding='utf-8')
+            healthy = {
+                'total_profit': 60000,
+                'win_rate': 72,
+                'avg_holding_time': 30,
+                'pnl_30d': 20000,
+                'max_drawdown': 18,
+            }
+            fetcher = FakeLeaderFetcher(stats_by_period={
+                '7d': {'LeaderBusy': {**healthy, 'wallet_address': 'LeaderBusy', 'buy': 10, 'sell': 10}},
+                '30d': {'LeaderBusy': {**healthy, 'wallet_address': 'LeaderBusy', 'buy': 300, 'sell': 300}},
+            })
+
+            result = rescore_copy_leaders(root, windows=['7d', '30d'], fetcher=fetcher)
+            saved = json.loads((root / 'config/wallet_whitelist.json').read_text(encoding='utf-8'))
+
+        wallet = saved['wallets'][0]
+        reasons = ' '.join(wallet.get('score_reasons') or [])
+        self.assertEqual(result['failed'], [])
+        self.assertGreater(float(wallet['total_score']), 0)
+        self.assertNotIn('ultra-high frequency', reasons)
+        self.assertEqual(wallet['stats_snapshot']['period'], '30d')
+        self.assertEqual(wallet['stats_snapshot']['trades_7d'], 20)
+        self.assertEqual(wallet['stats_snapshot']['trades_30d'], 600)
 
     def test_whitelist_score_refresh_once_writes_report_without_page_access(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

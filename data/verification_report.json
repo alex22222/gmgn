@@ -15,7 +15,7 @@
     "config/thresholds.json": "b51cb4d868effe8dfab7bfbec910303c13a436342bb2ed9bc6835e4aec52073c",
     "config/verification_expectations.json": "53f9920dfa4fa5e7367eafb2adbf7f5ce9a30eff2312c89b1713eec5bf15d6d6"
   },
-  "generated_at": "2026-11-01T14:54:58.640270+00:00",
+  "generated_at": "2026-11-01T16:04:11.604425+00:00",
   "operational_summary": {
     "automation_gate_status": "auto_trading_enabled",
     "candidate_count": 4,
@@ -61,7 +61,7 @@
         "....<string>:11: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).",
         "............................................................................................................................................................................................................",
         "----------------------------------------------------------------------",
-        "Ran 448 tests in 2.319s",
+        "Ran 451 tests in 2.293s",
         "",
         "OK"
       ],

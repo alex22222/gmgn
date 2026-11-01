@@ -120,6 +120,13 @@ class TestMapWalletStatsToFeatures:
         assert features["total_profit_usd"] == pytest.approx(49066.03, rel=1e-4)
         assert features["avg_holding_hours"] == pytest.approx(9.1, rel=1e-2)
 
+    def test_explicit_zero_trade_window_is_preserved(self) -> None:
+        stats = {"buy": 300, "sell": 300, "trades_7d": 0, "trades_30d": 600}
+        features = map_wallet_stats_to_features(stats)
+        assert features["trades_7d"] == 0
+        assert features["trades_30d"] == 600
+        assert features["total_transactions"] == 600
+
     def test_total_transactions_fallback_logic(self) -> None:
         # total_trades > 0 takes precedence
         stats = {"total_trades": 100, "trades_30d": 0}
