@@ -1,0 +1,10 @@
+{
+  "max_chase_percent": 15.0,
+  "max_signal_age_seconds": 20.0,
+  "consecutive_loss_limit": 3,
+  "max_wallet_daily_exposure_sol": 0.01,
+  "max_single_trade_sol": 0.01,
+  "require_known_security": false,
+  "demote_mode": "observe",
+  "notes": "Odaily/Grok Bot failure-mode guards for tiny_real copy trading"
+}
