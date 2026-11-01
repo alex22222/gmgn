@@ -197,6 +197,96 @@ def score_leaders(
     return result
 
 
+def rescore_copy_leaders(
+    root: Path,
+    *,
+    windows: list[str] | None = None,
+    chain: str = 'sol',
+    api_key: str | None = None,
+    fetcher: Any | None = None,
+) -> dict[str, object]:
+    """Rescore every copy-whitelist leader from live wallet stats.
+
+    The best lookback window wins. A zero threshold is not used, because the
+    shared scorer returns the first window that clears its quality bar.
+    """
+    root = root.resolve()
+    config_path = root / 'config' / 'wallet_whitelist.json'
+    config = _read_json_object(config_path)
+    wallets = config.get('wallets')
+    if not isinstance(wallets, list):
+        wallets = []
+    lookback = windows or ['7d', '30d']
+    active_fetcher = fetcher or _build_fetcher(chain=chain, api_key=api_key)
+    addresses = [
+        str(wallet.get('wallet_address') or '').strip()
+        for wallet in wallets
+        if isinstance(wallet, dict) and str(wallet.get('wallet_address') or '').strip()
+    ]
+    stats_by_window = {
+        window: _fetch_stats_batches(active_fetcher, addresses, period=window)
+        for window in lookback
+    }
+    updated: list[dict[str, object]] = []
+    failed: list[str] = []
+    for wallet in wallets:
+        if not isinstance(wallet, dict):
+            continue
+        address = str(wallet.get('wallet_address') or '').strip()
+        if not address:
+            continue
+        merged = _merge_copy_leader_stats(address, stats_by_window)
+        if merged is None:
+            failed.append(address)
+            continue
+        period = str(merged.get('period') or '30d')
+        record = _scored_record(
+            address,
+            period,
+            merged,
+            [period],
+            {period: {address: merged}},
+            chain=chain,
+            source_candidate={'source': 'copy_whitelist'},
+        )
+        if not isinstance(record, dict):
+            failed.append(address)
+            continue
+        stats = record.get('stats') if isinstance(record.get('stats'), dict) else {}
+        wallet['total_score'] = record.get('total_score')
+        wallet['grade'] = record.get('grade')
+        wallet['dimension_scores'] = record.get('dimension_scores') if isinstance(record.get('dimension_scores'), dict) else {}
+        wallet['stats_snapshot'] = {
+            'period': stats.get('period'),
+            'total_trades': stats.get('total_trades'),
+            'realized_profit': stats.get('realized_profit'),
+            'winrate': stats.get('winrate'),
+            'avg_holding_hours': stats.get('avg_holding_hours'),
+            'trades_7d': stats.get('trades_7d'),
+            'trades_30d': stats.get('trades_30d'),
+        }
+        wallet['score_reasons'] = record.get('score_reasons') if isinstance(record.get('score_reasons'), list) else []
+        wallet['scored_at'] = record.get('scored_at')
+        updated.append({
+            'label': wallet.get('label') or '',
+            'wallet_address': address,
+            'total_score': wallet['total_score'],
+            'grade': wallet['grade'],
+            'period': stats.get('period'),
+        })
+    config['wallets'] = wallets
+    config['updated_at'] = datetime.now(timezone.utc).isoformat()
+    _recalculate_copy_weights(config)
+    atomic_write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', config_path)
+    return {
+        'ok': not failed,
+        'updated_count': len(updated),
+        'failed_count': len(failed),
+        'updated': updated,
+        'failed': failed,
+    }
+
+
 def promote_leaders(
     root: Path,
     *,
@@ -447,6 +537,65 @@ def _score_one_wallet(
         min_win_rate_percent=min_win_rate_percent,
         min_total_trades=min_total_trades,
     )
+
+
+def _usable_window_stats(stats: object) -> dict[str, Any] | None:
+    if not isinstance(stats, dict):
+        return None
+    markers = ('buy', 'sell', 'total_trades', 'trades_7d', 'trades_30d', 'realized_profit', 'total_profit', 'win_rate')
+    if not any(stats.get(key) not in (None, '') for key in markers):
+        return None
+    return stats
+
+
+def _window_trade_count(stats: dict[str, Any], *, window: str) -> int | None:
+    if 'buy' in stats or 'sell' in stats:
+        try:
+            return int(stats.get('buy') or 0) + int(stats.get('sell') or 0)
+        except (TypeError, ValueError):
+            return None
+    key = 'trades_30d' if window == '30d' else 'trades_7d'
+    if stats.get(key) not in (None, ''):
+        try:
+            return int(stats.get(key) or 0)
+        except (TypeError, ValueError):
+            return None
+    if stats.get('total_trades') not in (None, ''):
+        try:
+            return int(stats.get('total_trades') or 0)
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _merge_copy_leader_stats(
+    address: str,
+    stats_by_window: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Score copy leaders on the 30d book, with the real 7d trade count.
+
+    GMGN period payloads omit ``trades_7d``. Copying the period's buy+sell into
+    that field makes a 30d book look like one week and trips the frequency reject.
+    """
+    seven = _usable_window_stats(stats_by_window.get('7d', {}).get(address))
+    thirty = _usable_window_stats(stats_by_window.get('30d', {}).get(address))
+    base_stats = thirty or seven
+    if base_stats is None:
+        return None
+    merged = dict(base_stats)
+    merged['wallet_address'] = address
+    if seven is not None:
+        counted = _window_trade_count(seven, window='7d')
+        if counted is not None:
+            merged['trades_7d'] = counted
+    if thirty is not None:
+        counted = _window_trade_count(thirty, window='30d')
+        if counted is not None:
+            merged['trades_30d'] = counted
+        merged['period'] = '30d'
+    else:
+        merged['period'] = '7d'
+    return merged
 
 
 def _score_wallet_across_windows(

@@ -4,7 +4,7 @@
   "exposure_level": "tiny_real",
   "trade_mode": "paper",
   "created_at": "2025-07-15T00:00:00+08:00",
-  "updated_at": "2026-11-01T22:35:00+08:00",
+  "updated_at": "2026-11-01T16:03:30.819208+00:00",
   "wallets": [
     {
       "wallet_address": "7cVyqNK6fEq6EGAw1UoyKLy8ni84BanEKkdfj5FvZQBh",
@@ -13,8 +13,8 @@
         "padre",
         "smart_degen"
       ],
-      "total_score": 53.4,
-      "grade": "D",
+      "total_score": 62.49,
+      "grade": "C",
       "copy_weight": 0.0,
       "copy_weight_percent": "0.0%",
       "mode": "follow",
@@ -37,23 +37,33 @@
         ]
       },
       "stats_snapshot": {
-        "total_trades": 284,
-        "token_num": 112,
-        "realized_profit": 1377.43,
-        "winrate": 60.36,
-        "avg_holding_hours": 0.81,
-        "wallet_age_days": 249
+        "period": "30d",
+        "total_trades": 1244,
+        "realized_profit": 7269.44,
+        "winrate": 56.23,
+        "avg_holding_hours": 24.84,
+        "trades_7d": 114,
+        "trades_30d": 1244
       },
       "dimension_scores": {
-        "profitability": 80.0,
-        "win_rate": 85.0,
-        "risk_control": 76.0,
-        "consistency": 45.22,
+        "profitability": 39.17,
+        "win_rate": 65.0,
+        "risk_control": 40.0,
+        "consistency": 86.0,
         "activity": 100.0,
-        "stability": 73.0
+        "stability": 88.0
       },
       "enabled": false,
-      "notes": "超短持仓(~0.8h)的 scalp 型交易者，胜率高(85%)但一致性偏弱。分配最低跟单权重，适合快进快出策略。"
+      "notes": "超短持仓(~0.8h)的 scalp 型交易者，胜率高(85%)但一致性偏弱。分配最低跟单权重，适合快进快出策略。",
+      "score_reasons": [
+        "profitability score 39 is weak",
+        "win_rate score 65 is good",
+        "risk_control score 40 is moderate",
+        "consistency score 86 is excellent",
+        "activity score 100 is excellent",
+        "stability score 88 is excellent"
+      ],
+      "scored_at": "2026-11-01T16:03:30.818772+00:00"
     },
     {
       "wallet_address": "DytMWmgaVBQrytfWqCp7oCUheuf7hnAhq3U1bA6Bujsz",
@@ -61,10 +71,10 @@
       "tags": [
         "smart_degen"
       ],
-      "total_score": 66.56,
-      "grade": "C",
-      "copy_weight": 0.173027,
-      "copy_weight_percent": "17.3%",
+      "total_score": 0.0,
+      "grade": "E",
+      "copy_weight": 0.0,
+      "copy_weight_percent": "0.0%",
       "mode": "follow",
       "enabled": true,
       "risk_limits": {
@@ -85,21 +95,27 @@
         ]
       },
       "stats_snapshot": {
-        "total_trades": 249,
-        "realized_profit": 1451.7509117666184,
-        "winrate": 64.0,
-        "avg_holding_hours": 38.460443121693125,
-        "period": null
+        "period": "30d",
+        "total_trades": 2,
+        "realized_profit": 1.45,
+        "winrate": 100.0,
+        "avg_holding_hours": 2269.75,
+        "trades_7d": 0,
+        "trades_30d": 2
       },
       "dimension_scores": {
-        "profitability": 35.63,
-        "win_rate": 85.0,
-        "risk_control": 76.0,
-        "consistency": 79.0,
-        "activity": 64.0,
-        "stability": 72.0
+        "profitability": 0.0,
+        "win_rate": 0.0,
+        "risk_control": 0.0,
+        "consistency": 0.0,
+        "activity": 0.0,
+        "stability": 0.0
       },
-      "notes": "Leader 池自动晋级；默认 observe 且暂停，需人工在跟单配置启用。"
+      "notes": "Leader 池自动晋级；默认 observe 且暂停，需人工在跟单配置启用。",
+      "score_reasons": [
+        "insufficient trades: 0 < 10"
+      ],
+      "scored_at": "2026-11-01T16:03:30.818841+00:00"
     },
     {
       "wallet_address": "En1eeXNnXm7d28FRgG4URGQQBSDvBxN3us1VJhhV1Rgu",
@@ -108,7 +124,7 @@
         "smart_degen",
         "axiom"
       ],
-      "total_score": 58.78,
+      "total_score": 48.15,
       "grade": "D",
       "copy_weight": 0.0,
       "copy_weight_percent": "0.0%",
@@ -132,21 +148,32 @@
         ]
       },
       "stats_snapshot": {
-        "total_trades": 385,
-        "realized_profit": 1231.6381787073265,
-        "winrate": 56.00000000000001,
-        "avg_holding_hours": 42.67060363247863,
-        "period": null
+        "period": "30d",
+        "total_trades": 722,
+        "realized_profit": 1773.73,
+        "winrate": 47.59,
+        "avg_holding_hours": 109.34,
+        "trades_7d": 84,
+        "trades_30d": 722
       },
       "dimension_scores": {
-        "profitability": 25.0,
-        "win_rate": 65.0,
-        "risk_control": 76.0,
-        "consistency": 79.0,
-        "activity": 42.79,
-        "stability": 82.0
+        "profitability": 37.53,
+        "win_rate": 45.0,
+        "risk_control": 40.0,
+        "consistency": 100.0,
+        "activity": 100.0,
+        "stability": 88.0
       },
-      "notes": "评分白名单人工加入；默认 observe 且暂停，需在跟单配置中启用。"
+      "notes": "评分白名单人工加入；默认 observe 且暂停，需在跟单配置中启用。",
+      "score_reasons": [
+        "profitability score 38 is weak",
+        "win_rate score 45 is moderate",
+        "risk_control score 40 is moderate",
+        "consistency score 100 is excellent",
+        "activity score 100 is excellent",
+        "stability score 88 is excellent"
+      ],
+      "scored_at": "2026-11-01T16:03:30.818928+00:00"
     },
     {
       "wallet_address": "BJG9c35ArqMKB2okGQGS2yg43WchTAp4EMTjY26cUY1c",
@@ -154,10 +181,10 @@
       "tags": [
         "leader_pool"
       ],
-      "total_score": 77.25,
-      "grade": "B",
-      "copy_weight": 0.200816,
-      "copy_weight_percent": "20.1%",
+      "total_score": 0.0,
+      "grade": "E",
+      "copy_weight": 0.0,
+      "copy_weight_percent": "0.0%",
       "mode": "observe",
       "enabled": true,
       "risk_limits": {
@@ -178,21 +205,27 @@
         ]
       },
       "stats_snapshot": {
-        "total_trades": 199,
-        "realized_profit": 20701.36,
-        "winrate": 78.95,
-        "avg_holding_hours": 201.72,
-        "period": "7d"
+        "period": "30d",
+        "total_trades": 90,
+        "realized_profit": -244.62,
+        "winrate": 50.0,
+        "avg_holding_hours": 1691.02,
+        "trades_7d": 16,
+        "trades_30d": 90
       },
       "dimension_scores": {
-        "profitability": 88.0,
-        "win_rate": 100.0,
-        "risk_control": 40.0,
-        "consistency": 79.0,
-        "activity": 66.0,
-        "stability": 88.0
+        "profitability": 0.0,
+        "win_rate": 0.0,
+        "risk_control": 0.0,
+        "consistency": 0.0,
+        "activity": 0.0,
+        "stability": 0.0
       },
-      "notes": "Leader 池自动晋级；默认 observe 且暂停，需人工在跟单配置启用。"
+      "notes": "Leader 池自动晋级；默认 observe 且暂停，需人工在跟单配置启用。",
+      "score_reasons": [
+        "consistent losses: total_pnl -1.6308 < 0.0 with >50 trades"
+      ],
+      "scored_at": "2026-11-01T16:03:30.818980+00:00"
     },
     {
       "wallet_address": "4FcpobdBuXZLCiYKhm9nmzhiguFjzqe6eGQ7kanqoDFE",
@@ -200,8 +233,8 @@
       "tags": [
         "leader_pool"
       ],
-      "total_score": 72.27,
-      "grade": "B",
+      "total_score": 0.0,
+      "grade": "E",
       "copy_weight": 0.0,
       "copy_weight_percent": "0.0%",
       "mode": "observe",
@@ -224,21 +257,28 @@
         ]
       },
       "stats_snapshot": {
-        "total_trades": 110,
-        "realized_profit": 1261.73,
-        "winrate": 88.24,
-        "avg_holding_hours": 95.5,
-        "period": "7d"
+        "period": "30d",
+        "total_trades": 172,
+        "realized_profit": -14955.19,
+        "winrate": 16.13,
+        "avg_holding_hours": 1031.32,
+        "trades_7d": 10,
+        "trades_30d": 172
       },
       "dimension_scores": {
-        "profitability": 66.29,
-        "win_rate": 100.0,
-        "risk_control": 40.0,
-        "consistency": 86.0,
-        "activity": 60.0,
-        "stability": 88.0
+        "profitability": 0.0,
+        "win_rate": 0.0,
+        "risk_control": 0.0,
+        "consistency": 0.0,
+        "activity": 0.0,
+        "stability": 0.0
       },
-      "notes": "Leader 池自动晋级；默认 observe 且暂停，需人工在跟单配置启用。"
+      "notes": "Leader 池自动晋级；默认 observe 且暂停，需人工在跟单配置启用。",
+      "score_reasons": [
+        "win rate too low: 16.13% < 30.0% with >20 trades",
+        "consistent losses: total_pnl -99.7013 < 0.0 with >50 trades"
+      ],
+      "scored_at": "2026-11-01T16:03:30.819030+00:00"
     },
     {
       "wallet_address": "4qyYcBA8tizD2MQCcHkXwrdFowZihKwdcFL6PExShVvL",
@@ -246,8 +286,8 @@
       "tags": [
         "leader_pool"
       ],
-      "total_score": 67.3,
-      "grade": "C",
+      "total_score": 0.0,
+      "grade": "E",
       "copy_weight": 0.0,
       "copy_weight_percent": "0.0%",
       "mode": "observe",
@@ -270,21 +310,27 @@
         ]
       },
       "stats_snapshot": {
-        "total_trades": 244,
-        "realized_profit": 3157.01,
-        "winrate": 66.67,
-        "avg_holding_hours": 328.35,
-        "period": "7d"
+        "period": "30d",
+        "total_trades": 0,
+        "realized_profit": 0.0,
+        "winrate": 38.72,
+        "avg_holding_hours": 18864.24,
+        "trades_7d": 0,
+        "trades_30d": 0
       },
       "dimension_scores": {
-        "profitability": 58.59,
-        "win_rate": 85.0,
-        "risk_control": 40.0,
-        "consistency": 79.0,
-        "activity": 70.0,
-        "stability": 88.0
+        "profitability": 0.0,
+        "win_rate": 0.0,
+        "risk_control": 0.0,
+        "consistency": 0.0,
+        "activity": 0.0,
+        "stability": 0.0
       },
-      "notes": "Leader 池自动晋级；默认 observe 且暂停，需人工在跟单配置启用。"
+      "notes": "Leader 池自动晋级；默认 observe 且暂停，需人工在跟单配置启用。",
+      "score_reasons": [
+        "insufficient trades: 0 < 10"
+      ],
+      "scored_at": "2026-11-01T16:03:30.819075+00:00"
     },
     {
       "wallet_address": "2P1S6LwnfYVhkR5vzV98VZNWw4CFkRrSbFfRP2t3JYwH",
@@ -292,10 +338,10 @@
       "tags": [
         "leader_pool"
       ],
-      "total_score": 85.4,
-      "grade": "A",
-      "copy_weight": 0.222003,
-      "copy_weight_percent": "22.2%",
+      "total_score": 0.0,
+      "grade": "E",
+      "copy_weight": 0.0,
+      "copy_weight_percent": "0.0%",
       "mode": "follow",
       "enabled": true,
       "risk_limits": {
@@ -316,21 +362,27 @@
         ]
       },
       "stats_snapshot": {
-        "total_trades": 91,
-        "realized_profit": 35843.44,
-        "winrate": 100.0,
-        "avg_holding_hours": 115.85,
-        "period": "7d"
+        "period": "30d",
+        "total_trades": 0,
+        "realized_profit": 0.0,
+        "winrate": 0.0,
+        "avg_holding_hours": 2153.15,
+        "trades_7d": 0,
+        "trades_30d": 0
       },
       "dimension_scores": {
-        "profitability": 100.0,
-        "win_rate": 100.0,
-        "risk_control": 40.0,
-        "consistency": 100.0,
-        "activity": 86.0,
-        "stability": 88.0
+        "profitability": 0.0,
+        "win_rate": 0.0,
+        "risk_control": 0.0,
+        "consistency": 0.0,
+        "activity": 0.0,
+        "stability": 0.0
       },
-      "notes": "Leader 池自动晋级；默认 observe 且暂停，需人工在跟单配置启用。"
+      "notes": "Leader 池自动晋级；默认 observe 且暂停，需人工在跟单配置启用。",
+      "score_reasons": [
+        "insufficient trades: 0 < 10"
+      ],
+      "scored_at": "2026-11-01T16:03:30.819116+00:00"
     },
     {
       "wallet_address": "HCgo8gvk99Wk13XWbbAoyxyEx2DgzidzVDma4ny32uYC",
@@ -338,10 +390,10 @@
       "tags": [
         "leader_pool"
       ],
-      "total_score": 83.37,
-      "grade": "A",
-      "copy_weight": 0.216726,
-      "copy_weight_percent": "21.7%",
+      "total_score": 0.0,
+      "grade": "E",
+      "copy_weight": 0.0,
+      "copy_weight_percent": "0.0%",
       "mode": "follow",
       "enabled": true,
       "risk_limits": {
@@ -362,21 +414,29 @@
         ]
       },
       "stats_snapshot": {
-        "total_trades": 56,
-        "realized_profit": 89010.99,
-        "winrate": 100.0,
-        "avg_holding_hours": 91.53,
-        "period": "7d"
+        "period": "30d",
+        "total_trades": 88,
+        "realized_profit": -222772.5,
+        "winrate": 25.58,
+        "avg_holding_hours": 2373.56,
+        "trades_7d": 0,
+        "trades_30d": 88
       },
       "dimension_scores": {
-        "profitability": 100.0,
-        "win_rate": 100.0,
-        "risk_control": 40.0,
-        "consistency": 100.0,
-        "activity": 65.73,
-        "stability": 88.0
+        "profitability": 0.0,
+        "win_rate": 0.0,
+        "risk_control": 0.0,
+        "consistency": 0.0,
+        "activity": 0.0,
+        "stability": 0.0
       },
-      "notes": "Leader 池自动晋级；默认 observe 且暂停，需人工在跟单配置启用。"
+      "notes": "Leader 池自动晋级；默认 observe 且暂停，需人工在跟单配置启用。",
+      "score_reasons": [
+        "insufficient trades: 0 < 10",
+        "win rate too low: 25.58% < 30.0% with >20 trades",
+        "consistent losses: total_pnl -1485.15 < 0.0 with >50 trades"
+      ],
+      "scored_at": "2026-11-01T16:03:30.819160+00:00"
     },
     {
       "wallet_address": "3kfyzegbWkgAdLWtywmGcLFcUw2RPzt3i1EEzdXYtYM8",
@@ -384,10 +444,10 @@
       "tags": [
         "leader_pool"
       ],
-      "total_score": 72.1,
-      "grade": "B",
-      "copy_weight": 0.187429,
-      "copy_weight_percent": "18.7%",
+      "total_score": 0.0,
+      "grade": "E",
+      "copy_weight": 0.0,
+      "copy_weight_percent": "0.0%",
       "mode": "follow",
       "enabled": true,
       "risk_limits": {
@@ -408,21 +468,27 @@
         ]
       },
       "stats_snapshot": {
-        "total_trades": 142,
-        "realized_profit": 510010.79,
-        "winrate": 66.67,
-        "avg_holding_hours": 23.79,
-        "period": "7d"
+        "period": "30d",
+        "total_trades": 18,
+        "realized_profit": -37231.4,
+        "winrate": 57.14,
+        "avg_holding_hours": 593.77,
+        "trades_7d": 0,
+        "trades_30d": 18
       },
       "dimension_scores": {
-        "profitability": 86.0,
-        "win_rate": 85.0,
-        "risk_control": 40.0,
-        "consistency": 72.0,
-        "activity": 60.0,
-        "stability": 88.0
+        "profitability": 0.0,
+        "win_rate": 0.0,
+        "risk_control": 0.0,
+        "consistency": 0.0,
+        "activity": 0.0,
+        "stability": 0.0
       },
-      "notes": "评分白名单人工加入；默认 observe 且暂停，需在跟单配置中启用。"
+      "notes": "评分白名单人工加入；默认 observe 且暂停，需在跟单配置中启用。",
+      "score_reasons": [
+        "insufficient trades: 0 < 10"
+      ],
+      "scored_at": "2026-11-01T16:03:30.819204+00:00"
     }
   ],
   "global_settings": {
@@ -444,7 +510,7 @@
   "weight_calculation": {
     "method": "active_score_normalized",
     "description": "仅对启用且未 paused 的 leader 按 total_score 归一化；暂停 leader 权重为 0",
-    "total_score_sum": 384.68,
+    "total_score_sum": 0.0,
     "formula": "active_wallet_weight = wallet_score / active_score_sum"
   }
 }

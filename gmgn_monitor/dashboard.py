@@ -2012,12 +2012,17 @@ def _copy_trading_wallet_payload(
     }
 
 
-def _read_or_refresh_whitelist_score_report(root: Path, wallets: list[object]) -> dict[str, object]:
+def _read_or_refresh_whitelist_score_report(
+    root: Path,
+    wallets: list[object],
+    *,
+    force: bool = False,
+) -> dict[str, object]:
     report_path = root / 'data' / 'whitelist_score_report.json'
     current = _read_json_object(report_path)
     now = datetime.now(timezone.utc)
     generated_at = _parse_iso_datetime(str(current.get('generated_at') or ''))
-    if generated_at and (now - generated_at).total_seconds() < _WHITELIST_SCORE_INTERVAL_SECONDS:
+    if not force and generated_at and (now - generated_at).total_seconds() < _WHITELIST_SCORE_INTERVAL_SECONDS:
         return current
     records = [
         _score_whitelist_wallet(wallet)
@@ -2081,13 +2086,8 @@ def _start_whitelist_score_monitor(root: Path, stop_event: threading.Event) -> t
 
 
 def _score_whitelist_wallet(wallet: dict[str, object]) -> dict[str, object]:
-    score = _number(wallet.get('total_score'))
-    dimensions = wallet.get('dimension_scores')
-    if isinstance(dimensions, dict) and dimensions:
-        values = [_number(value) for value in dimensions.values()]
-        if values:
-            score = round(sum(values) / len(values), 2)
-    grade = str(wallet.get('grade') or _grade_from_score(score))
+    score = round(_number(wallet.get('total_score')), 2)
+    grade = _grade_from_score(score)
     low = score < _LOW_WALLET_SCORE_THRESHOLD or grade in {'D', 'E'}
     return {
         'wallet_address': str(wallet.get('wallet_address') or ''),
@@ -4131,9 +4131,23 @@ INDEX_HTML = r'''<!doctype html>
     let portfolioNeedsPositionRender = false;
     const leaderFunnelPageSize = 25;
 
+    async function readJson(response) {
+      const body = (await response.text()).trim();
+      if (!body) return {};
+      try {
+        return JSON.parse(body);
+      } catch (error) {
+        throw new Error(body.replace(/\s+/g, ' ').slice(0, 180));
+      }
+    }
+
+    function errorText(error) {
+      return error && error.message ? error.message : String(error);
+    }
+
     async function refresh() {
       const response = await fetch('/api/status');
-      dashboard = await response.json();
+      dashboard = await readJson(response);
       render();
     }
 
@@ -4605,7 +4619,7 @@ INDEX_HTML = r'''<!doctype html>
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ wallet_address: walletAddress }),
         });
-        const result = await response.json();
+        const result = await readJson(response);
         dashboard = result.dashboard || dashboard;
         render();
         if (!response.ok || !result.ok) {
@@ -4633,7 +4647,7 @@ INDEX_HTML = r'''<!doctype html>
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ wallet_address: walletAddress }),
         });
-        const result = await response.json();
+        const result = await readJson(response);
         dashboard = result.dashboard || dashboard;
         render();
         if (!response.ok || !result.ok) {
@@ -4667,7 +4681,7 @@ INDEX_HTML = r'''<!doctype html>
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action, chain: 'sol' }),
         });
-        const result = await response.json();
+        const result = await readJson(response);
         dashboard = result.dashboard || dashboard;
         render();
         if (!response.ok || !result.ok) {
@@ -4707,7 +4721,7 @@ INDEX_HTML = r'''<!doctype html>
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-        const result = await response.json();
+        const result = await readJson(response);
         if (!response.ok || !result.ok) {
           throw new Error(result.error || 'Leader 池配置保存失败');
         }
@@ -4826,7 +4840,7 @@ INDEX_HTML = r'''<!doctype html>
             confirmed: true,
           }),
         });
-        const result = await response.json();
+        const result = await readJson(response);
         document.getElementById('portfolioActionNotice').textContent = result.success
           ? `真实卖出已提交：${result.tx_hash || result.order_id || symbol}`
           : `卖出未执行：${result.error_message || '请检查 gmgn-cli 配置和安全门'}`;
@@ -4857,7 +4871,7 @@ INDEX_HTML = r'''<!doctype html>
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        const portfolio = await response.json();
+        const portfolio = await readJson(response);
         dashboard.portfolio = portfolio;
         renderPortfolioSummary(portfolio);
         if (portfolioNeedsPositionRender) {
@@ -4987,7 +5001,7 @@ INDEX_HTML = r'''<!doctype html>
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ wallet_address: walletAddress, enabled: !currentlyEnabled }),
         });
-        const result = await response.json();
+        const result = await readJson(response);
         if (!response.ok || !result.ok) {
           throw new Error(result.error || 'Leader 操作失败');
         }
@@ -4997,7 +5011,7 @@ INDEX_HTML = r'''<!doctype html>
       } catch (error) {
         button.disabled = false;
         button.textContent = originalText;
-        window.alert(String(error));
+        window.alert(errorText(error));
       }
     }
 
@@ -5107,7 +5121,7 @@ INDEX_HTML = r'''<!doctype html>
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-        const result = await response.json();
+        const result = await readJson(response);
         if (!response.ok || !result.ok) {
           throw new Error(result.error || '跟单配置保存失败');
         }
@@ -5220,7 +5234,7 @@ INDEX_HTML = r'''<!doctype html>
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-        const result = await response.json();
+        const result = await readJson(response);
         if (!response.ok || !result.ok) {
           throw new Error(result.error || '代币止损止盈配置保存失败');
         }
@@ -5246,14 +5260,14 @@ INDEX_HTML = r'''<!doctype html>
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ enabled: !currentlyEnabled }),
         });
-        const result = await response.json();
+        const result = await readJson(response);
         if (!response.ok || !result.ok) {
           throw new Error(result.error || '自动化安全门操作失败');
         }
         dashboard = result.dashboard || dashboard;
         render();
       } catch (error) {
-        window.alert(String(error));
+        window.alert(errorText(error));
         render();
       } finally {
         button.disabled = false;

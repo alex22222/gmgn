@@ -80,12 +80,10 @@ def map_wallet_stats_to_features(wallet_stats: dict[str, Any]) -> dict[str, Any]
     total_trades = _safe_int(wallet_stats.get("total_trades"))
     if total_trades == 0:
         total_trades = _safe_int(wallet_stats.get("buy")) + _safe_int(wallet_stats.get("sell"))
-    trades_7d = _safe_int(wallet_stats.get("trades_7d"))
-    trades_30d = _safe_int(wallet_stats.get("trades_30d"))
-    if trades_7d == 0:
-        trades_7d = total_trades
-    if trades_30d == 0:
-        trades_30d = total_trades
+    # A missing period count falls back to the payload's total. An explicit 0
+    # stays 0 so a quiet 7d window is not replaced by the 30d book.
+    trades_7d = total_trades if "trades_7d" not in wallet_stats or wallet_stats.get("trades_7d") is None else _safe_int(wallet_stats.get("trades_7d"))
+    trades_30d = total_trades if "trades_30d" not in wallet_stats or wallet_stats.get("trades_30d") is None else _safe_int(wallet_stats.get("trades_30d"))
     avg_holding_time = _safe_float(wallet_stats.get("avg_holding_time"))
     if avg_holding_time == 0:
         avg_holding_time = _safe_float(pnl_stat.get("avg_holding_period")) / 3600.0

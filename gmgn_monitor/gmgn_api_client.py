@@ -399,7 +399,7 @@ class GmgnApiClient:
                     reset_ts = e.headers.get("x-ratelimit-reset")
                     if reset_ts:
                         wait_until = float(reset_ts) + 1.0
-                        sleep_time = max(0.1, wait_until - time.time())
+                        sleep_time = min(30.0, max(0.1, wait_until - time.time()))
                         time.sleep(sleep_time)
                     else:
                         time.sleep(1.0)
