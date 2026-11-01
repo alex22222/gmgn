@@ -1,10 +1,10 @@
 {
   "version": "1.0",
-  "description": "GMGN Phase 2 — tiny_real 微型真实交易配置（单笔 ≤ 0.01 SOL，日亏损 ≤ 0.03 SOL）",
+  "description": "GMGN Phase 2 — paper 跟单（真实 leader 信号，模拟成交；单笔 ≤ 0.01 SOL，日亏损 ≤ 0.03 SOL）",
   "exposure_level": "tiny_real",
-  "trade_mode": "real",
+  "trade_mode": "paper",
   "created_at": "2025-07-15T00:00:00+08:00",
-  "updated_at": "2026-07-07T14:45:17.502224+00:00",
+  "updated_at": "2026-11-01T22:35:00+08:00",
   "wallets": [
     {
       "wallet_address": "7cVyqNK6fEq6EGAw1UoyKLy8ni84BanEKkdfj5FvZQBh",
@@ -436,7 +436,10 @@
     "rebalance_frequency": "daily",
     "audit_log_enabled": true,
     "feishu_alert_enabled": true,
-    "auto_confirm": true
+    "auto_confirm": false,
+    "copy_trading_enabled": true,
+    "paper_lookback_days": 30,
+    "paper_signal_source": "gmgn-cli portfolio activity"
   },
   "weight_calculation": {
     "method": "active_score_normalized",

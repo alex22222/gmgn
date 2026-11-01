@@ -1,0 +1,272 @@
+{
+  "timestamp": "2026-11-01T14:35:53.163004+00:00",
+  "trade_mode": "paper",
+  "paper_observations": [
+    {
+      "signal_id": "paper-2t5LaW42WfKx-7pHWb4",
+      "wallet_address": "DytMWmgaVBQrytfWqCp7oCUheuf7hnAhq3U1bA6Bujsz",
+      "label": "leader_pool_4",
+      "symbol": "PANDA",
+      "event_type": "sell",
+      "signal_type": "EXIT",
+      "token": "7pHWb473wuZ8iN65kw7Vyds2Soq6TtYVKhqoA6U58j1n",
+      "event_time": "2026-10-08T17:23:57+00:00",
+      "age_hours": 573.2,
+      "tx_hash": "2t5LaW42WfKxnZc1Zrre8wfo96Y4bHzd36m3rmgoQqAcDCuXC1oqSFQLbNLpXv7TieYFKhq1ogH5wXW9dToFXDiy",
+      "leader_quote_amount": 0.093942995,
+      "leader_cost_usd": 10.0255964264,
+      "paper_amount_sol": 0.01
+    },
+    {
+      "signal_id": "paper-jvsThk1h2iFM-7pHWb4",
+      "wallet_address": "DytMWmgaVBQrytfWqCp7oCUheuf7hnAhq3U1bA6Bujsz",
+      "label": "leader_pool_4",
+      "symbol": "PANDA",
+      "event_type": "buy",
+      "signal_type": "NEW_POSITION",
+      "token": "7pHWb473wuZ8iN65kw7Vyds2Soq6TtYVKhqoA6U58j1n",
+      "event_time": "2026-10-08T17:21:55+00:00",
+      "age_hours": 573.23,
+      "tx_hash": "jvsThk1h2iFMz1u6CbbwhqtFRJQio4qyBK9FrrtG4MowXosNMhLjgHQXzhgYUB3zAFc9wyqdHkNUCgDSwddNgaA",
+      "leader_quote_amount": 0.08,
+      "leader_cost_usd": 8.5552,
+      "paper_amount_sol": 0.01
+    },
+    {
+      "signal_id": "paper-2f2kMyxUfEBQ-9cRCn9",
+      "wallet_address": "HCgo8gvk99Wk13XWbbAoyxyEx2DgzidzVDma4ny32uYC",
+      "label": "leader_pool_10",
+      "symbol": "ANSEM",
+      "event_type": "sell",
+      "signal_type": "EXIT",
+      "token": "9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump",
+      "event_time": "2026-10-20T13:50:27+00:00",
+      "age_hours": 288.76,
+      "tx_hash": "2f2kMyxUfEBQivEdbMPKgkkLFaRd2QFZcNFoF52mxT79MPTLc9cvRkxR8jnSzMjBPjZCPveZkrqYYZA9L8yPMknH",
+      "leader_quote_amount": 76.486915246,
+      "leader_cost_usd": 8002.06107303652,
+      "paper_amount_sol": 0.01
+    },
+    {
+      "signal_id": "paper-4q2X2Y9etm1f-HRe2Lk",
+      "wallet_address": "3kfyzegbWkgAdLWtywmGcLFcUw2RPzt3i1EEzdXYtYM8",
+      "label": "leader_pool_manual_9",
+      "symbol": "GUARD",
+      "event_type": "sell",
+      "signal_type": "EXIT",
+      "token": "HRe2LkLMiQnrpeooNTmvkHp2bzX7JdBPpek7Eu3oWSuK",
+      "event_time": "2026-10-20T13:59:31+00:00",
+      "age_hours": 288.6,
+      "tx_hash": "4q2X2Y9etm1fa5uHgpE1GUoFLvuP9XkJLfeTMUci8M8krNSox4gV4ckfghD4ZgvQr6TsuvMuWrmZUWuAVm7vvub",
+      "leader_quote_amount": 52524.539928,
+      "leader_cost_usd": 4419.332328515402,
+      "paper_amount_sol": 0.01
+    },
+    {
+      "signal_id": "paper-2ULRpitYzwWY-9cRCn9",
+      "wallet_address": "3kfyzegbWkgAdLWtywmGcLFcUw2RPzt3i1EEzdXYtYM8",
+      "label": "leader_pool_manual_9",
+      "symbol": "ANSEM",
+      "event_type": "buy",
+      "signal_type": "NEW_POSITION",
+      "token": "9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump",
+      "event_time": "2026-10-20T13:56:31+00:00",
+      "age_hours": 288.65,
+      "tx_hash": "2ULRpitYzwWYczkgwZMpcHP7sJSEkKJSvJCwyqeRsVUpTEf4xouk3BTR9LFqjB6DWzFecD25Gi8EbaZtQXttw8jG",
+      "leader_quote_amount": 25.459638078,
+      "leader_cost_usd": 2666.38789590894,
+      "paper_amount_sol": 0.01
+    }
+  ],
+  "paper_fetch_notes": [
+    {
+      "wallet_address": "DytMWmgaVBQrytfWqCp7oCUheuf7hnAhq3U1bA6Bujsz",
+      "label": "leader_pool_4",
+      "status": "ok",
+      "activity_count": 20,
+      "selected": 2,
+      "newest_event_time": "2026-10-08T17:23:57+00:00",
+      "lookback_days": 30
+    },
+    {
+      "wallet_address": "2P1S6LwnfYVhkR5vzV98VZNWw4CFkRrSbFfRP2t3JYwH",
+      "label": "leader_pool_9",
+      "status": "ok",
+      "activity_count": 20,
+      "selected": 0,
+      "newest_event_time": "2026-07-20T21:45:29+00:00",
+      "lookback_days": 30
+    },
+    {
+      "wallet_address": "HCgo8gvk99Wk13XWbbAoyxyEx2DgzidzVDma4ny32uYC",
+      "label": "leader_pool_10",
+      "status": "ok",
+      "activity_count": 20,
+      "selected": 1,
+      "newest_event_time": "2026-10-20T13:50:27+00:00",
+      "lookback_days": 30
+    },
+    {
+      "wallet_address": "3kfyzegbWkgAdLWtywmGcLFcUw2RPzt3i1EEzdXYtYM8",
+      "label": "leader_pool_manual_9",
+      "status": "ok",
+      "activity_count": 20,
+      "selected": 2,
+      "newest_event_time": "2026-10-31T23:28:11+00:00",
+      "lookback_days": 30
+    }
+  ],
+  "processed_count": 5,
+  "orders_created": 0,
+  "orders": [],
+  "buy_executed": [],
+  "copy_sell_results": [
+    {
+      "signal": {
+        "signal_id": "paper-2t5LaW42WfKx-7pHWb4",
+        "wallet_address": "DytMWmgaVBQrytfWqCp7oCUheuf7hnAhq3U1bA6Bujsz",
+        "target_token": "7pHWb473wuZ8iN65kw7Vyds2Soq6TtYVKhqoA6U58j1n",
+        "signal_type": "EXIT",
+        "recommended_amount_sol": 0.01,
+        "confidence_score": 70,
+        "quality_score": 66
+      },
+      "result": {
+        "success": false,
+        "sell_execution": {
+          "execution_id": "156b24d2-e103-4192-9809-e571a1447538",
+          "signal_id": "copy-paper-2t5LaW42WfKx-7pHWb4",
+          "status": "FAILED",
+          "tx_hash": null,
+          "actual_amount_sol": 0.0,
+          "actual_slippage_percent": 0.0,
+          "gas_cost_sol": 0.0,
+          "received_at": "2026-11-01T14:35:53.159053+00:00",
+          "submitted_at": null,
+          "confirmed_at": null,
+          "error_message": "Zero token balance"
+        },
+        "order_id": null,
+        "tx_hash": null,
+        "error_message": "Zero token balance",
+        "gas_cost_sol": 0.0,
+        "actual_slippage_percent": 0.0,
+        "confirmation_time_ms": 0.0
+      }
+    },
+    {
+      "signal": {
+        "signal_id": "paper-2f2kMyxUfEBQ-9cRCn9",
+        "wallet_address": "HCgo8gvk99Wk13XWbbAoyxyEx2DgzidzVDma4ny32uYC",
+        "target_token": "9cRCn9rGT8V2imeM2BaKs13yhMEais3ruM3rPvTGpump",
+        "signal_type": "EXIT",
+        "recommended_amount_sol": 0.01,
+        "confidence_score": 70,
+        "quality_score": 83
+      },
+      "result": {
+        "success": false,
+        "sell_execution": {
+          "execution_id": "0b178b28-dcad-4348-88e6-7f77d62b19a4",
+          "signal_id": "copy-paper-2f2kMyxUfEBQ-9cRCn9",
+          "status": "FAILED",
+          "tx_hash": null,
+          "actual_amount_sol": 0.0,
+          "actual_slippage_percent": 0.0,
+          "gas_cost_sol": 0.0,
+          "received_at": "2026-11-01T14:35:53.161421+00:00",
+          "submitted_at": null,
+          "confirmed_at": null,
+          "error_message": "Zero token balance"
+        },
+        "order_id": null,
+        "tx_hash": null,
+        "error_message": "Zero token balance",
+        "gas_cost_sol": 0.0,
+        "actual_slippage_percent": 0.0,
+        "confirmation_time_ms": 0.0
+      }
+    },
+    {
+      "signal": {
+        "signal_id": "paper-4q2X2Y9etm1f-HRe2Lk",
+        "wallet_address": "3kfyzegbWkgAdLWtywmGcLFcUw2RPzt3i1EEzdXYtYM8",
+        "target_token": "HRe2LkLMiQnrpeooNTmvkHp2bzX7JdBPpek7Eu3oWSuK",
+        "signal_type": "EXIT",
+        "recommended_amount_sol": 0.01,
+        "confidence_score": 70,
+        "quality_score": 72
+      },
+      "result": {
+        "success": false,
+        "sell_execution": {
+          "execution_id": "451cef31-2937-4c40-bd3d-2d6d145c4d56",
+          "signal_id": "copy-paper-4q2X2Y9etm1f-HRe2Lk",
+          "status": "FAILED",
+          "tx_hash": null,
+          "actual_amount_sol": 0.0,
+          "actual_slippage_percent": 0.0,
+          "gas_cost_sol": 0.0,
+          "received_at": "2026-11-01T14:35:53.162496+00:00",
+          "submitted_at": null,
+          "confirmed_at": null,
+          "error_message": "Zero token balance"
+        },
+        "order_id": null,
+        "tx_hash": null,
+        "error_message": "Zero token balance",
+        "gas_cost_sol": 0.0,
+        "actual_slippage_percent": 0.0,
+        "confirmation_time_ms": 0.0
+      }
+    }
+  ],
+  "copy_sell_skipped_summary": {},
+  "sell_signals": 0,
+  "sell_signal_details": [],
+  "sell_results": 0,
+  "sell_result_details": [],
+  "cycle_duration_ms": 0.22,
+  "execution_log": [
+    {
+      "step": "preprocess",
+      "processed_count": 5,
+      "accepted_count": 4,
+      "rejected_count": 1,
+      "details": {
+        "total_processed": 5,
+        "accepted": 4,
+        "rejected": 1,
+        "deduplicated": 1,
+        "blacklisted": 0,
+        "below_quality": 0,
+        "below_wallet_score": 0,
+        "expired": 0
+      }
+    },
+    {
+      "step": "css_evaluate",
+      "evaluated_count": 4,
+      "pass_count": 0,
+      "watch_count": 4,
+      "reject_count": 0
+    },
+    {
+      "step": "risk_check",
+      "checked_count": 0,
+      "allow_count": 0,
+      "block_count": 0,
+      "sell_only_count": 0
+    },
+    {
+      "step": "order_create",
+      "orders_created_count": 0,
+      "order_ids": []
+    },
+    {
+      "step": "sell_execution",
+      "sell_signals_count": 0,
+      "sell_results_count": 0
+    }
+  ]
+}
