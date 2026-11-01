@@ -1,78 +1,14 @@
 {
-  "generated_at": "2026-07-07T14:24:42.230786+00:00",
-  "next_run_at": "2026-07-07T17:24:42.230786+00:00",
+  "generated_at": "2026-11-01T12:53:25.977855+00:00",
+  "next_run_at": "2026-11-01T15:53:25.977855+00:00",
   "interval_seconds": 10800,
   "low_score_threshold": 60.0,
-  "wallet_count": 10,
-  "low_score_count": 2,
+  "wallet_count": 7,
+  "low_score_count": 0,
   "wallets": [
     {
-      "wallet_address": "CAwVkbo3oTaTWfU8Wuc5g45vcbn6hq2t657wKWsVuZmP",
-      "label": "whitelist_top_2",
-      "total_score": 70.16,
-      "grade": "C",
-      "score_status": "ok",
-      "warning": ""
-    },
-    {
-      "wallet_address": "7cVyqNK6fEq6EGAw1UoyKLy8ni84BanEKkdfj5FvZQBh",
-      "label": "whitelist_top_3",
-      "total_score": 76.54,
-      "grade": "D",
-      "score_status": "low",
-      "warning": "评分偏低：76.54 / D，建议暂停或人工复核。"
-    },
-    {
-      "wallet_address": "DytMWmgaVBQrytfWqCp7oCUheuf7hnAhq3U1bA6Bujsz",
-      "label": "leader_pool_4",
-      "total_score": 68.61,
-      "grade": "C",
-      "score_status": "ok",
-      "warning": ""
-    },
-    {
-      "wallet_address": "En1eeXNnXm7d28FRgG4URGQQBSDvBxN3us1VJhhV1Rgu",
-      "label": "leader_pool_manual_4",
-      "total_score": 61.63,
-      "grade": "D",
-      "score_status": "low",
-      "warning": "评分偏低：61.63 / D，建议暂停或人工复核。"
-    },
-    {
-      "wallet_address": "BJG9c35ArqMKB2okGQGS2yg43WchTAp4EMTjY26cUY1c",
-      "label": "leader_pool_5",
-      "total_score": 76.83,
-      "grade": "B",
-      "score_status": "ok",
-      "warning": ""
-    },
-    {
-      "wallet_address": "4FcpobdBuXZLCiYKhm9nmzhiguFjzqe6eGQ7kanqoDFE",
-      "label": "leader_pool_6",
-      "total_score": 73.38,
-      "grade": "B",
-      "score_status": "ok",
-      "warning": ""
-    },
-    {
-      "wallet_address": "4bNbuHvEzZKZsrFzLkky4yoQU7UZXuC2WQ5BRkqZuCjz",
-      "label": "leader_pool_7",
-      "total_score": 72.54,
-      "grade": "C",
-      "score_status": "ok",
-      "warning": ""
-    },
-    {
-      "wallet_address": "4qyYcBA8tizD2MQCcHkXwrdFowZihKwdcFL6PExShVvL",
-      "label": "leader_pool_8",
-      "total_score": 70.1,
-      "grade": "C",
-      "score_status": "ok",
-      "warning": ""
-    },
-    {
       "wallet_address": "2P1S6LwnfYVhkR5vzV98VZNWw4CFkRrSbFfRP2t3JYwH",
-      "label": "leader_pool_9",
+      "label": "high_score_1_A",
       "total_score": 85.67,
       "grade": "A",
       "score_status": "ok",
@@ -80,9 +16,49 @@
     },
     {
       "wallet_address": "HCgo8gvk99Wk13XWbbAoyxyEx2DgzidzVDma4ny32uYC",
-      "label": "leader_pool_10",
+      "label": "high_score_2_A",
       "total_score": 82.29,
       "grade": "A",
+      "score_status": "ok",
+      "warning": ""
+    },
+    {
+      "wallet_address": "BJG9c35ArqMKB2okGQGS2yg43WchTAp4EMTjY26cUY1c",
+      "label": "high_score_3_B",
+      "total_score": 76.83,
+      "grade": "B",
+      "score_status": "ok",
+      "warning": ""
+    },
+    {
+      "wallet_address": "4FcpobdBuXZLCiYKhm9nmzhiguFjzqe6eGQ7kanqoDFE",
+      "label": "high_score_4_B",
+      "total_score": 73.38,
+      "grade": "B",
+      "score_status": "ok",
+      "warning": ""
+    },
+    {
+      "wallet_address": "3kfyzegbWkgAdLWtywmGcLFcUw2RPzt3i1EEzdXYtYM8",
+      "label": "high_score_5_B",
+      "total_score": 71.83,
+      "grade": "B",
+      "score_status": "ok",
+      "warning": ""
+    },
+    {
+      "wallet_address": "4qyYcBA8tizD2MQCcHkXwrdFowZihKwdcFL6PExShVvL",
+      "label": "high_score_6_C",
+      "total_score": 70.1,
+      "grade": "C",
+      "score_status": "ok",
+      "warning": ""
+    },
+    {
+      "wallet_address": "DytMWmgaVBQrytfWqCp7oCUheuf7hnAhq3U1bA6Bujsz",
+      "label": "high_score_7_C",
+      "total_score": 68.61,
+      "grade": "C",
       "score_status": "ok",
       "warning": ""
     }
