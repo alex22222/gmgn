@@ -1,8 +1,9 @@
 """Single risk sheet for copy trading.
 
 Pipeline plans still read ``config/risk_limits.json``. Copy execution reads
-``config/copy_risk.json`` so absolute SOL caps, leader score, and signal age
-are not mixed with the 300-second CSS freshness score.
+``config/copy_risk.json`` so absolute SOL caps, leader score, signal age, and
+the copy order lines live in one place. The monitor CSS engine still defaults
+to pass 70 / watch 50; only the copy runner passes the lines from this sheet.
 """
 from __future__ import annotations
 
@@ -36,6 +37,8 @@ class CopyRiskProfile:
     )
     min_leader_score: float = 65.0
     review_score: float = 60.0
+    css_pass_score: float = 60.0
+    css_watch_score: float = 45.0
     min_signal_quality: int = 50
     report_lookback_days: int = 30
     max_signal_age_minutes: int = 30
@@ -63,6 +66,8 @@ class CopyRiskProfile:
             "stop_loss_percent": self.stop_loss_percent,
             "min_leader_score": self.min_leader_score,
             "review_score": self.review_score,
+            "css_pass_score": self.css_pass_score,
+            "css_watch_score": self.css_watch_score,
             "min_signal_quality": self.min_signal_quality,
             "report_lookback_days": self.report_lookback_days,
             "max_signal_age_minutes": self.max_signal_age_minutes,
@@ -113,6 +118,8 @@ def load_copy_risk(path: Path | None = None) -> CopyRiskProfile:
         take_profit_steps=parsed_steps or CopyRiskProfile.take_profit_steps,
         min_leader_score=_float(gates, "min_leader_score", 65.0),
         review_score=_float(gates, "review_score", 60.0),
+        css_pass_score=_float(gates, "css_pass_score", 60.0),
+        css_watch_score=_float(gates, "css_watch_score", 45.0),
         min_signal_quality=_int(gates, "min_signal_quality", 50),
         report_lookback_days=_int(gates, "report_lookback_days", 30),
         max_signal_age_minutes=_int(gates, "max_signal_age_minutes", 30),
@@ -130,6 +137,10 @@ def load_copy_risk(path: Path | None = None) -> CopyRiskProfile:
         raise ValueError("max_signal_age_minutes must be positive")
     if profile.min_leader_score < profile.review_score:
         raise ValueError("min_leader_score must be at least review_score")
+    if not 0.0 <= profile.css_watch_score <= profile.css_pass_score <= 100.0:
+        raise ValueError("css_pass_score must be between css_watch_score and 100")
+    if profile.css_pass_score < 50.0:
+        raise ValueError("css_pass_score must stay at least 50")
     return profile
 
 

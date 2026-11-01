@@ -168,13 +168,28 @@ class CSSEngine:
             execute_trade(signal)
     """
 
-    def __init__(self, weights: CSSWeights | None = None) -> None:
-        """Initialise the engine with optional custom weights.
+    def __init__(
+        self,
+        weights: CSSWeights | None = None,
+        *,
+        pass_score: float = 70.0,
+        watch_score: float = 50.0,
+    ) -> None:
+        """Initialise the engine with optional custom weights and decision lines.
+
+        The monitor pipeline keeps the factory lines: PASS at 70, WATCH at 50.
+        Copy execution passes its own lines from ``config/copy_risk.json``.
 
         Args:
             weights: Optional weight overrides. Defaults to ``CSSWeights.default_weights()``.
+            pass_score: Minimum CSS that can become an order when the account can trade.
+            watch_score: Minimum CSS that stays observable without an order.
         """
+        if not 0.0 <= float(watch_score) <= float(pass_score) <= 100.0:
+            raise ValueError("CSS watch_score must be between 0 and pass_score, and pass_score at most 100")
         self.weights = weights or CSSWeights.default_weights()
+        self.pass_score = float(pass_score)
+        self.watch_score = float(watch_score)
 
     @classmethod
     def default_weights(cls) -> CSSWeights:
@@ -224,9 +239,9 @@ class CSSEngine:
             + momentum_score * self.weights.time_momentum
         )
 
-        if css >= 70 and account.can_trade:
+        if css >= self.pass_score and account.can_trade:
             decision = CSSDecision.PASS
-        elif css >= 50 and account.can_trade:
+        elif css >= self.watch_score and account.can_trade:
             decision = CSSDecision.WATCH
         else:
             decision = CSSDecision.REJECT
@@ -245,6 +260,8 @@ class CSSEngine:
                 "wallet_address": signal.wallet_address,
                 "target_token": signal.target_token,
                 "signal_type": signal.signal_type,
+                "pass_score": self.pass_score,
+                "watch_score": self.watch_score,
             },
         )
 

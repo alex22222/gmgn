@@ -1,10 +1,25 @@
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from gmgn_monitor.copy_risk import CopyRiskProfile, load_copy_risk
+from gmgn_monitor.css_engine import (
+    CSSDecision,
+    CSSEngine,
+    AccountState,
+    MarketCondition,
+    TimeMomentum,
+    TokenRiskScore,
+)
+from gmgn_monitor.execution_loop import ExecutionLoopEngine
+from gmgn_monitor.order_manager import OrderManager
+from gmgn_monitor.risk_manager import RiskManager
+from gmgn_monitor.signal_preprocessor import SignalPreprocessor
 from gmgn_monitor.paper_copy import (
     ObservedLeaderSignal,
     PaperBuyExecutor,
@@ -162,6 +177,8 @@ class PaperCopyTests(unittest.TestCase):
         self.assertNotIsInstance(components["buy_executor"], RealTradeExecutor)
         self.assertFalse(components["liquidate_removed_leaders"])
         self.assertIsNone(components["gmgn_client"])
+        self.assertEqual(components["loop"].css_engine.pass_score, 60.0)
+        self.assertEqual(components["loop"].css_engine.watch_score, 45.0)
 
     def test_collect_leader_signals_uses_loader_and_records_fetch_notes(self):
         calls: list[str] = []
@@ -194,6 +211,8 @@ class PaperCopyTests(unittest.TestCase):
         self.assertEqual(profile.min_leader_score, 65.0)
         self.assertEqual(profile.max_signal_age_minutes, 30)
         self.assertEqual(profile.max_single_position_percent, 2.0)
+        self.assertEqual(profile.css_pass_score, 60.0)
+        self.assertEqual(profile.css_watch_score, 45.0)
 
     def test_split_holds_stale_signals_and_extra_buys(self):
         profile = CopyRiskProfile(max_signal_age_minutes=30, max_daily_trades=1)
@@ -255,6 +274,90 @@ class PaperCopyTests(unittest.TestCase):
         self.assertEqual(calls, [])
         self.assertEqual(observed, [])
         self.assertEqual(notes[0]["status"], "below_score")
+
+    def test_copy_order_line_fills_a_fresh_65_leader_that_global_css_watches(self):
+        signal = TradeSignal(
+            signal_id="paper-fresh-65",
+            wallet_address="Leader111",
+            target_token="TokenFresh111",
+            signal_type="NEW_POSITION",
+            urgency_score=65,
+            confidence_score=70,
+            quality_score=65,
+            recommended_amount_sol=0.01,
+            max_slippage_percent=2.0,
+            received_at=datetime.utcnow(),
+        )
+        scores = {"Leader111": 65.0}
+        profile = load_copy_risk()
+        neutral = _neutral_css_inputs()
+        global_result = CSSEngine().evaluate(signal=signal, wallet_score=65.0, **neutral)
+        copy_engine = CSSEngine(pass_score=profile.css_pass_score, watch_score=profile.css_watch_score)
+        copy_result = copy_engine.evaluate(signal=signal, wallet_score=65.0, **neutral)
+        self.assertLess(global_result.css_score, 70.0)
+        self.assertGreaterEqual(global_result.css_score, 60.0)
+        self.assertEqual(global_result.decision, CSSDecision.WATCH)
+        self.assertEqual(copy_result.decision, CSSDecision.PASS)
+        self.assertEqual(copy_result.css_score, global_result.css_score)
+
+        watched = _run_copy_cycle(signal, scores, CSSEngine(), profile)
+        ordered = _run_copy_cycle(signal, scores, copy_engine, profile)
+        self.assertEqual(watched["css_pass_count"], 0)
+        self.assertEqual(watched["orders_created"], [])
+        self.assertEqual(ordered["css_pass_count"], 1)
+        self.assertEqual(len(ordered["orders_created"]), 1)
+        self.assertEqual(ordered["orders_created"][0]["amount_sol"], 0.01)
+
+    def test_copy_risk_rejects_an_order_line_below_the_reject_floor(self):
+        raw = json.loads(Path("config/copy_risk.json").read_text(encoding="utf-8"))
+        raw["gates"]["css_pass_score"] = 40
+        raw["gates"]["css_watch_score"] = 30
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "copy_risk.json"
+            path.write_text(json.dumps(raw), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                load_copy_risk(path)
+        raw["gates"]["css_pass_score"] = 55
+        raw["gates"]["css_watch_score"] = 60
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "copy_risk.json"
+            path.write_text(json.dumps(raw), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                load_copy_risk(path)
+
+
+def _neutral_css_inputs() -> dict:
+    return {
+        "token_risk": TokenRiskScore(
+            liquidity_score=50.0,
+            contract_safe=True,
+            market_cap_usd=1_000_000.0,
+            holder_count=1_000,
+        ),
+        "market": MarketCondition(btc_trend_24h=0.0, overall_sentiment=50.0, fear_greed_index=50.0),
+        "account": AccountState(
+            balance_sol=10.0,
+            open_positions_count=0,
+            daily_pnl_sol=0.0,
+            daily_loss_limit_sol=1.0,
+            max_positions=3,
+        ),
+        "momentum": TimeMomentum(signal_age_seconds=0.0, chain_activity_score=50.0, volume_surge_1h=0.0),
+    }
+
+
+def _run_copy_cycle(signal: TradeSignal, scores: dict[str, float], engine: CSSEngine, profile: CopyRiskProfile) -> dict:
+    loop = ExecutionLoopEngine(
+        css_engine=engine,
+        preprocessor=SignalPreprocessor(
+            min_confidence=profile.min_signal_quality,
+            min_wallet_score=profile.min_leader_score,
+        ),
+        risk_manager=RiskManager(profile.to_risk_limits()),
+        order_manager=OrderManager(),
+        portfolio_tracker=PortfolioTracker(initial_balance_sol=10.0),
+    )
+    return loop.run_cycle([signal], scores)
 
 
 def _observed(minutes_ago: int, event_type: str, token: str) -> ObservedLeaderSignal:
