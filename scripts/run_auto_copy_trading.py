@@ -44,12 +44,14 @@ from gmgn_monitor.live_signal_fetcher import LiveSignalFetcher
 from gmgn_monitor.order_manager import OrderManager
 from gmgn_monitor.portfolio_tracker import PortfolioTracker
 from gmgn_monitor.position_monitor import PositionMonitor
+from gmgn_monitor.copy_risk import load_copy_risk
 from gmgn_monitor.paper_copy import (
     PaperBuyExecutor,
     PaperSellExecutor,
     collect_leader_signals,
     copy_trading_enabled,
     resolve_trade_mode,
+    split_executable_signals,
 )
 from gmgn_monitor.real_trade_executor import RealTradeExecutor
 from gmgn_monitor.risk_manager import RiskLimits, RiskManager
@@ -250,23 +252,9 @@ def _build_wallet_scores(follow_wallets: list[dict[str, Any]]) -> dict[str, floa
 
 
 def _build_risk_limits(follow_wallets: list[dict[str, Any]]) -> RiskLimits:
-    """Build RiskLimits from the first wallet's risk config (or defaults)."""
-    if follow_wallets:
-        r = follow_wallets[0].get("risk_limits", {})
-        return RiskLimits(
-            daily_loss_limit_percent=5.0,
-            max_single_position_percent=20.0,
-            max_total_positions=3,
-            default_stop_loss_percent=r.get("stop_loss_percent", -40.0),
-            circuit_breaker_cooldown_seconds=600,
-            kill_switch=False,
-        )
-    return RiskLimits(
-        daily_loss_limit_percent=5.0,
-        max_single_position_percent=20.0,
-        max_total_positions=3,
-        default_stop_loss_percent=-40.0,
-    )
+    """Use the copy risk sheet. Wallet JSON cannot widen those caps."""
+    del follow_wallets
+    return load_copy_risk().to_risk_limits()
 
 
 def _refresh_follow_config(components: dict[str, Any]) -> list[dict[str, Any]]:
@@ -359,8 +347,13 @@ def _init_components(
     order_manager = OrderManager()
     portfolio = PortfolioTracker(initial_balance_sol=10.0)
     risk_manager = RiskManager(risk_limits)
+    copy_risk = load_copy_risk()
     css_engine = CSSEngine()
-    preprocessor = SignalPreprocessor()
+    preprocessor = SignalPreprocessor(
+        min_confidence=copy_risk.min_signal_quality,
+        min_wallet_score=copy_risk.min_leader_score,
+        dedup_window_seconds=copy_risk.dedup_window_seconds,
+    )
 
     # Price monitoring
     birdeye = BirdeyeClient()
@@ -390,7 +383,11 @@ def _init_components(
         )
         signal_fetcher = LiveSignalFetcher(api_client=gmgn_client, wallet_scores=wallet_scores)
     else:
-        buy_executor = PaperBuyExecutor(portfolio=portfolio, risk_limits=risk_limits)
+        buy_executor = PaperBuyExecutor(
+            portfolio=portfolio,
+            risk_limits=risk_limits,
+            copy_risk=copy_risk,
+        )
         sell_executor = PaperSellExecutor(portfolio=portfolio)
         signal_fetcher = type("PaperSignalScores", (), {})()
         signal_fetcher.wallet_scores = wallet_scores
@@ -427,6 +424,7 @@ def _init_components(
         "signal_fetcher": signal_fetcher,
         "gmgn_client": gmgn_client,
         "whitelist_config": config,
+        "copy_risk": copy_risk,
         "liquidate_removed_leaders": trade_mode == "real",
         "sell_cooldowns": {},
         "copy_sell_seen": {},
@@ -525,13 +523,22 @@ def _fetch_paper_signals(components: dict[str, Any]) -> list[TradeSignal]:
     follow_wallets = components["follow_wallets"]
     config = components.get("whitelist_config") or {}
     print(f"[Paper] Reading gmgn-cli activity for {len(follow_wallets)} leaders...")
-    observed, notes = collect_leader_signals(follow_wallets, config)
+    profile = components.get("copy_risk") or load_copy_risk()
+    observed, notes = collect_leader_signals(follow_wallets, config, profile=profile)
+    executable, held_back = split_executable_signals(observed, profile)
     components["paper_observations"] = [item.to_dict() for item in observed]
+    components["paper_executable"] = [item.to_dict() for item in executable]
+    components["paper_held_back"] = held_back
     components["paper_fetch_notes"] = notes
     for note in notes:
         label = note.get("label") or str(note.get("wallet_address") or "")[:8]
         if note.get("status") == "ok":
             print(f"  [Leader] {label}: activity={note.get('activity_count')} selected={note.get('selected')}")
+        elif note.get("status") == "below_score":
+            print(
+                f"  [Leader] {label}: score {note.get('total_score')} "
+                f"below {note.get('min_leader_score')}"
+            )
         else:
             print(f"  [Leader ERROR] {label}: {note.get('error')}")
     for item in observed:
@@ -539,8 +546,14 @@ def _fetch_paper_signals(components: dict[str, Any]) -> list[TradeSignal]:
             f"  [Signal] {item.event_type} {item.symbol or item.signal.target_token[:8]} "
             f"age={item.age_hours:.1f}h paper={item.signal.recommended_amount_sol:.4f} SOL"
         )
-    print(f"[Paper] Selected {len(observed)} leader signals")
-    return [item.signal for item in observed]
+    print(
+        f"[Paper] Observed {len(observed)} leader signals, "
+        f"executable {len(executable)}, held back {len(held_back)} "
+        f"(max age {profile.max_signal_age_minutes}m, "
+        f"leader score >= {profile.min_leader_score:g}, "
+        f"size <= {profile.max_single_trade_sol} SOL)"
+    )
+    return [item.signal for item in executable]
 
 
 def _run_cycle(components: dict[str, Any], signals: list[TradeSignal]) -> dict[str, Any]:
@@ -750,6 +763,8 @@ def _run_cycle(components: dict[str, Any], signals: list[TradeSignal]) -> dict[s
 
     result["trade_mode"] = components.get("trade_mode")
     result["paper_observations"] = components.get("paper_observations", [])
+    result["paper_executable"] = components.get("paper_executable", [])
+    result["paper_held_back"] = components.get("paper_held_back", [])
     result["paper_fetch_notes"] = components.get("paper_fetch_notes", [])
     result["buy_executed"] = buy_executed
     result["copy_sell_results"] = copy_sell_results
@@ -768,6 +783,8 @@ def _log_cycle(result: dict[str, Any]) -> None:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "trade_mode": result.get("trade_mode"),
         "paper_observations": result.get("paper_observations", []),
+        "paper_executable": result.get("paper_executable", []),
+        "paper_held_back": result.get("paper_held_back", []),
         "paper_fetch_notes": result.get("paper_fetch_notes", []),
         "processed_count": result.get("processed_count", 0),
         "orders_created": len(result.get("orders_created", [])),

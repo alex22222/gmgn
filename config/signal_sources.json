@@ -15,7 +15,7 @@
       "signal_types": ["buy", "sell"],
       "copy_weight": 0.387,
       "risk_tier": "mini_real",
-      "max_single_trade_sol": 0.005,
+      "max_single_trade_sol": 0.01,
       "slippage_percent": 2.0,
       "notes": "白名单评分#1，风险控制优秀，跟随买卖信号"
     },
@@ -30,7 +30,7 @@
       "signal_types": ["buy", "sell"],
       "copy_weight": 0.342,
       "risk_tier": "mini_real",
-      "max_single_trade_sol": 0.005,
+      "max_single_trade_sol": 0.01,
       "slippage_percent": 2.0,
       "notes": "白名单评分#2，新钱包但盈利能力强，跟随买卖信号"
     },
@@ -45,7 +45,7 @@
       "signal_types": ["buy", "sell"],
       "copy_weight": 0.271,
       "risk_tier": "mini_real",
-      "max_single_trade_sol": 0.005,
+      "max_single_trade_sol": 0.01,
       "slippage_percent": 2.0,
       "notes": "白名单评分#3，超短持仓 scalp 型，跟随买卖信号"
     }
@@ -54,17 +54,17 @@
     "detection_method": "onchain_activity_monitor",
     "chain": "sol",
     "polling_interval_seconds": 30,
-    "signal_ttl_seconds": 300,
+    "signal_ttl_seconds": 1800,
     "duplicate_filter_window_seconds": 60,
     "minimum_signal_confidence": 0.7,
     "aggregate_signals": false,
     "wallet_weighted_routing": true
   },
   "risk_gates": {
-    "daily_loss_limit_sol": 0.015,
+    "daily_loss_limit_sol": 0.03,
     "max_concurrent_positions": 3,
     "cooldown_after_loss_seconds": 300,
-    "require_approval_above_sol": 0.005,
+    "require_approval_above_sol": 0.01,
     "kill_switch_on_consecutive_losses": 3
   }
 }

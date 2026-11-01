@@ -1,0 +1,28 @@
+{
+  "version": "1",
+  "profile": "tiny_real_paper",
+  "notes": "跟单执行只认这一份绝对门槛。30 天回看只用于展示 leader 最近成交；超过 max_signal_age_minutes 的成交不进 CSS、不开仓。CSS 通过线仍是 70、观察线仍是 50，由 CSSEngine 计算，本文件不改那两条。低于 65 分不跟；仪表盘低于 60 分只是复核提醒。",
+  "limits": {
+    "max_single_trade_sol": 0.01,
+    "max_daily_loss_sol": 0.03,
+    "max_daily_trades": 3,
+    "max_positions": 3,
+    "max_single_position_percent": 2.0,
+    "daily_loss_limit_percent": 5.0,
+    "default_slippage_percent": 2.0,
+    "max_slippage_percent": 5.0,
+    "stop_loss_percent": -40.0,
+    "take_profit_steps": [
+      {"price_change_percent": 100.0, "sell_percent": 50.0},
+      {"price_change_percent": 300.0, "sell_percent": 50.0}
+    ]
+  },
+  "gates": {
+    "min_leader_score": 65.0,
+    "review_score": 60.0,
+    "min_signal_quality": 50,
+    "report_lookback_days": 30,
+    "max_signal_age_minutes": 30,
+    "dedup_window_seconds": 300
+  }
+}

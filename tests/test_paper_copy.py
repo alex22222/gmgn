@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
+from gmgn_monitor.copy_risk import CopyRiskProfile, load_copy_risk
 from gmgn_monitor.paper_copy import (
+    ObservedLeaderSignal,
     PaperBuyExecutor,
     PaperSellExecutor,
     collect_leader_signals,
@@ -12,7 +15,9 @@ from gmgn_monitor.paper_copy import (
     parse_activity_payload,
     resolve_trade_mode,
     select_leader_signals,
+    split_executable_signals,
 )
+from gmgn_monitor.trade_signal import TradeSignal
 from gmgn_monitor.portfolio_tracker import PortfolioTracker
 from gmgn_monitor.real_trade_executor import RealTradeExecutor
 from gmgn_monitor.sell_executor import SellSignal
@@ -178,6 +183,106 @@ class PaperCopyTests(unittest.TestCase):
         self.assertEqual(notes[0]["selected"], 1)
         self.assertIn("newest_event_time", notes[0])
         self.assertEqual(observed[0].signal.target_token, "Token111111")
+
+    def test_repo_copy_risk_matches_tiny_real_caps(self):
+        profile = load_copy_risk()
+        self.assertEqual(profile.max_single_trade_sol, 0.01)
+        self.assertEqual(profile.max_daily_loss_sol, 0.03)
+        self.assertEqual(profile.max_positions, 3)
+        self.assertEqual(profile.max_slippage_percent, 5.0)
+        self.assertEqual(profile.stop_loss_percent, -40.0)
+        self.assertEqual(profile.min_leader_score, 65.0)
+        self.assertEqual(profile.max_signal_age_minutes, 30)
+        self.assertEqual(profile.max_single_position_percent, 2.0)
+
+    def test_split_holds_stale_signals_and_extra_buys(self):
+        profile = CopyRiskProfile(max_signal_age_minutes=30, max_daily_trades=1)
+        fresh = _observed(10, "buy", "TokenFresh")
+        extra = _observed(5, "buy", "TokenExtra")
+        stale = _observed(120, "buy", "TokenStale")
+
+        executable, held = split_executable_signals(
+            [fresh, extra, stale],
+            profile,
+            now=NOW,
+        )
+
+        self.assertEqual([item.signal.target_token for item in executable], ["TokenFresh"])
+        self.assertEqual(executable[0].signal.received_at, NOW.replace(tzinfo=None))
+        reasons = {item["token"]: item["hold_reason"] for item in held}
+        self.assertEqual(reasons["TokenExtra"], "max_daily_trades")
+        self.assertEqual(reasons["TokenStale"], "stale")
+
+    def test_paper_buy_blocks_size_and_daily_loss(self):
+        profile = CopyRiskProfile()
+        selected = select_leader_signals(
+            [_activity("buy", int(NOW.timestamp()), 0.05)],
+            _wallet(),
+            now=NOW,
+            lookback=timedelta(days=1),
+        )
+        oversized = replace(selected[0].signal, recommended_amount_sol=0.02)
+        executor = PaperBuyExecutor(copy_risk=profile)
+        blocked = executor.execute_trade(oversized)
+        self.assertFalse(blocked.success)
+        self.assertEqual(blocked.error_message, "exceeds max_single_trade_sol")
+
+        portfolio = PortfolioTracker(initial_balance_sol=10.0)
+        portfolio.open_position("OldToken", entry_price_sol=1.0, quantity=0.05)
+        portfolio.close_position("OldToken", exit_price_sol=0.0)
+        lost = PaperBuyExecutor(portfolio=portfolio, copy_risk=profile)
+        loss_block = lost.execute_trade(selected[0].signal)
+        self.assertFalse(loss_block.success)
+        self.assertEqual(loss_block.error_message, "daily loss limit")
+
+    def test_below_score_leader_is_not_fetched(self):
+        calls: list[str] = []
+
+        def loader(address: str):
+            calls.append(address)
+            return []
+
+        wallet = _wallet()
+        wallet["total_score"] = 40
+        observed, notes = collect_leader_signals(
+            [wallet],
+            {},
+            now=NOW,
+            sleeper=lambda _seconds: None,
+            activity_loader=loader,
+            profile=CopyRiskProfile(min_leader_score=65),
+        )
+        self.assertEqual(calls, [])
+        self.assertEqual(observed, [])
+        self.assertEqual(notes[0]["status"], "below_score")
+
+
+def _observed(minutes_ago: int, event_type: str, token: str) -> ObservedLeaderSignal:
+    event_time = NOW - timedelta(minutes=minutes_ago)
+    signal_type = "EXIT" if event_type == "sell" else "NEW_POSITION"
+    signal = TradeSignal(
+        signal_id=f"paper-{token}",
+        wallet_address="Leader111",
+        target_token=token,
+        signal_type=signal_type,
+        urgency_score=80,
+        confidence_score=70,
+        quality_score=80,
+        recommended_amount_sol=0.01,
+        max_slippage_percent=2.0,
+        received_at=event_time.replace(tzinfo=None),
+    )
+    return ObservedLeaderSignal(
+        signal=signal,
+        label="leader",
+        symbol=token,
+        event_type=event_type,
+        event_time=event_time,
+        age_hours=minutes_ago / 60.0,
+        tx_hash=f"tx-{token}",
+        leader_quote_amount=0.01,
+        leader_cost_usd=1.0,
+    )
 
 
 if __name__ == "__main__":
