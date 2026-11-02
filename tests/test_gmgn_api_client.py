@@ -367,6 +367,70 @@ class TestRateLimitRetry:
         assert exc_info.value.http_status == 429
         assert mock_urlopen.call_count == 2
 
+    @patch("gmgn_monitor.gmgn_api_client.time.sleep")
+    @patch("gmgn_monitor.gmgn_api_client.time.time")
+    @patch("gmgn_monitor.gmgn_api_client.urllib.request.urlopen")
+    def test_rate_limit_retry_rebuilds_timestamp(self, mock_urlopen, mock_time, mock_sleep, client):
+        from urllib.error import HTTPError
+        from io import BytesIO
+        from urllib.parse import parse_qs, urlsplit
+
+        mock_time.side_effect = [1_700_000_000, 1_700_000_000, 1_700_000_040]
+        error_response = HTTPError(
+            url="https://openapi.gmgn.ai/v1/user/smartmoney",
+            code=429,
+            msg="Too Many Requests",
+            hdrs={"x-ratelimit-reset": "1700000030"},
+            fp=BytesIO(b'{"code":42901,"message":"rate limit"}'),
+        )
+        mock_urlopen.side_effect = [error_response, self._make_cm_response([{"ok": True}])]
+
+        result = client.get_smartmoney()
+
+        assert result == [{"ok": True}]
+        timestamps = [
+            parse_qs(urlsplit(call.args[0].full_url).query)["timestamp"][0]
+            for call in mock_urlopen.call_args_list
+        ]
+        assert timestamps == ["1700000000", "1700000040"]
+        mock_sleep.assert_called_once()
+
+    @patch("gmgn_monitor.gmgn_api_client.time.sleep")
+    @patch("gmgn_monitor.gmgn_api_client.time.time")
+    @patch("gmgn_monitor.gmgn_api_client.urllib.request.urlopen")
+    def test_timestamp_expired_retries_with_fresh_signature(self, mock_urlopen, mock_time, mock_sleep):
+        from urllib.parse import parse_qs, urlsplit
+
+        class StampSigner:
+            def sign(self, message: str) -> str:
+                return "sig-" + message.rsplit(":", 1)[-1]
+
+        client = GmgnApiClient(api_key="test_key")
+        client._signer = StampSigner()
+        mock_time.side_effect = [1_700_000_000, 1_700_000_050]
+        mock_urlopen.side_effect = [
+            MagicMock(
+                read=MagicMock(return_value=json.dumps(
+                    {"code": 40003, "data": {}, "message": "timestamp expired"}
+                ).encode("utf-8")),
+                close=MagicMock(),
+            ),
+            self._make_cm_response({"holdings": []}),
+        ]
+
+        result = client.get_wallet_holdings(chain="sol", wallet_address="addr1")
+
+        assert result == {"holdings": []}
+        requests = [call.args[0] for call in mock_urlopen.call_args_list]
+        timestamps = [
+            parse_qs(urlsplit(req.full_url).query)["timestamp"][0]
+            for req in requests
+        ]
+        assert timestamps == ["1700000000", "1700000050"]
+        assert requests[0].headers["X-signature"] == "sig-1700000000"
+        assert requests[1].headers["X-signature"] == "sig-1700000050"
+        mock_sleep.assert_called_once()
+
 
 class TestGmgnApiErrorObject:
     """Direct unit tests for the exception class."""
