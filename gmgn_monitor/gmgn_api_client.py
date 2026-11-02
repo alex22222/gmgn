@@ -481,6 +481,24 @@ class GmgnApiClient:
             {"chain": chain, "wallet_address": ",".join(wallet_addresses), "period": period},
         )
 
+    def get_wallet_profits(
+        self,
+        chain: str,
+        wallet_addresses: list[str],
+        period: str = "7d",
+    ) -> dict[str, Any]:
+        """Fetch batched wallet profit rows.
+
+        Calls ``POST /v1/user/wallet_profits`` (exist auth). One request covers
+        up to 100 addresses. ``wallet_stats`` itself returns a single wallet.
+        """
+        return self._auth_exist_request(
+            "POST",
+            "/v1/user/wallet_profits",
+            {},
+            {"chain": chain, "period": period, "wallet_addresses": wallet_addresses},
+        )
+
     def get_wallet_activity(
         self,
         chain: str,

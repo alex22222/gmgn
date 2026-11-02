@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
@@ -287,6 +288,149 @@ def rescore_copy_leaders(
     }
 
 
+def screen_qualified_leaders(
+    root: Path,
+    *,
+    min_score: float | None = None,
+    min_win_rate_percent: float | None = None,
+    min_total_trades: int | None = None,
+    min_trades_7d: int = 10,
+    windows: list[str] | None = None,
+    max_addresses: int = 80,
+    stats_limit: int = 40,
+    follow_limit: int = 10,
+    chain: str = 'sol',
+    api_key: str | None = None,
+    fetcher: Any | None = None,
+    pause_seconds: float = 0.0,
+    sleeper: Any = time.sleep,
+) -> dict[str, object]:
+    """Rescore leaders from live stats and keep the ones that clear the copy gates.
+
+    A leader is qualified only when the wallet engine score, 30d win rate,
+    30d sample size, and the real 7d trade count all clear the configured floors.
+    Qualified leaders become the paper follow list. Everyone else is not enabled.
+    """
+    root = root.resolve()
+    gates = _screen_gates(
+        root,
+        min_score=min_score,
+        min_win_rate_percent=min_win_rate_percent,
+        min_total_trades=min_total_trades,
+        min_trades_7d=min_trades_7d,
+    )
+    lookback = windows or ['7d', '30d']
+    selected = _screen_addresses(root, max(1, int(max_addresses)))
+    active_fetcher = fetcher or _build_fetcher(chain=chain, api_key=api_key)
+    configured = {
+        address for address, source in selected
+        if 'mode' in source or 'risk_limits' in source
+    }
+    kept, skip_reasons = _prefilter_active_addresses(
+        active_fetcher,
+        [address for address, _source in selected if address not in configured],
+        gates,
+        stats_limit=max(0, int(stats_limit)),
+        pause_seconds=pause_seconds,
+        sleeper=sleeper,
+    )
+    to_score: list[str] = []
+    seen_score: set[str] = set()
+    for address, _source in selected:
+        if address in configured or address in kept:
+            if address not in seen_score:
+                seen_score.add(address)
+                to_score.append(address)
+    stats_by_window = _fetch_screen_windows(
+        active_fetcher,
+        to_score,
+        lookback,
+        pause_seconds=pause_seconds,
+        sleeper=sleeper,
+    )
+    qualified_records: list[dict[str, Any]] = []
+    screened_rows: list[dict[str, Any]] = []
+    scored_any = False
+    for address, source in selected:
+        if skip_reasons is not None and address not in configured and address not in kept:
+            screened_rows.append(_screen_row(
+                address,
+                source,
+                None,
+                qualified=False,
+                reason=skip_reasons.get(address, '7日成交、30日样本或已实现收益没过线'),
+            ))
+            continue
+        merged = _merge_copy_leader_stats(address, stats_by_window)
+        if merged is None:
+            screened_rows.append(_screen_row(address, source, None, qualified=False, reason='GMGN stats unavailable'))
+            continue
+        if merged.get('trades_7d') is None:
+            merged['trades_7d'] = 0
+        scored_any = True
+        period = str(merged.get('period') or '30d')
+        record = _scored_record(
+            address,
+            period,
+            merged,
+            [period],
+            {period: {address: merged}},
+            chain=chain,
+            source_candidate=source,
+        )
+        stats = record.get('stats') if isinstance(record.get('stats'), dict) else {}
+        trades_7d = int(float(stats.get('trades_7d') or 0))
+        qualified = (
+            not record.get('hard_rejected')
+            and trades_7d >= gates['min_trades_7d']
+            and _is_high_quality(
+                record,
+                gates['min_score'],
+                gates['min_win_rate_percent'],
+                gates['min_total_trades'],
+            )
+        )
+        if qualified:
+            qualified_records.append(record)
+        reason = ''
+        if not qualified:
+            reason = _screen_reject_reason(record, gates)
+        screened_rows.append(_screen_row(address, source, record, qualified=qualified, reason=reason))
+
+    qualified_records.sort(key=lambda item: float(item.get('total_score') or 0), reverse=True)
+    follow_records = qualified_records[:max(0, int(follow_limit))]
+    if scored_any:
+        _apply_qualified_follow_list(root, follow_records)
+        _replace_scored_whitelist(root, qualified_records)
+    report = {
+        'generated_at': datetime.now(timezone.utc).isoformat(),
+        'gates': gates,
+        'screened': len(screened_rows),
+        'scored': sum(1 for row in screened_rows if row.get('scored')),
+        'qualified_count': len(qualified_records),
+        'follow_count': len(follow_records) if scored_any else 0,
+        'qualified': [_screen_row(str(item.get('wallet_address') or ''), item, item, qualified=True, reason='') for item in follow_records],
+        'wallets': screened_rows,
+    }
+    atomic_write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', root / 'data' / 'qualified_leaders.json')
+    message = (
+        f"合格 leader {len(follow_records)} 个：分数 ≥ {gates['min_score']:g}，"
+        f"胜率 ≥ {gates['min_win_rate_percent']:g}%，样本 ≥ {gates['min_total_trades']}，"
+        f"7 日成交 ≥ {gates['min_trades_7d']}。"
+        if scored_any else
+        '没有拿到 GMGN 统计，跟单名单未改。'
+    )
+    result = _action_result('screen', scored_any, message)
+    result.update({
+        'qualified_count': len(qualified_records),
+        'follow_count': len(follow_records) if scored_any else 0,
+        'screened': len(screened_rows),
+        'gates': gates,
+    })
+    _write_action_result(root, result)
+    return result
+
+
 def promote_leaders(
     root: Path,
     *,
@@ -369,6 +513,275 @@ def backtest_leaders(
     result.update({'backtested': len(results), 'passed': passed, 'target': target})
     _write_action_result(root, result)
     return result
+
+
+def _screen_gates(
+    root: Path,
+    *,
+    min_score: float | None,
+    min_win_rate_percent: float | None,
+    min_total_trades: int | None,
+    min_trades_7d: int,
+) -> dict[str, float | int]:
+    pool = _read_json_object(root / 'config' / 'leader_pool.json')
+    risk = _read_json_object(root / 'config' / 'copy_risk.json')
+    risk_gates = risk.get('gates') if isinstance(risk.get('gates'), dict) else {}
+    pool_score = float(pool.get('min_score') or 65.0)
+    copy_score = float(risk_gates.get('min_leader_score') or pool_score)
+    return {
+        'min_score': float(min_score if min_score is not None else max(pool_score, copy_score)),
+        'min_win_rate_percent': float(min_win_rate_percent if min_win_rate_percent is not None else pool.get('min_win_rate_percent') or 60.0),
+        'min_total_trades': int(min_total_trades if min_total_trades is not None else pool.get('min_total_trades') or 50),
+        'min_trades_7d': int(min_trades_7d),
+    }
+
+
+def _screen_addresses(root: Path, max_addresses: int) -> list[tuple[str, dict[str, Any]]]:
+    selected: list[tuple[str, dict[str, Any]]] = []
+    seen: set[str] = set()
+
+    def push(address: object, source: dict[str, Any] | None) -> None:
+        text = str(address or '').strip()
+        key = text.lower()
+        if not text or key in seen or len(selected) >= max_addresses:
+            return
+        seen.add(key)
+        selected.append((text, source or {}))
+
+    config = _read_json_object(root / 'config' / 'wallet_whitelist.json')
+    wallets = config.get('wallets') if isinstance(config.get('wallets'), list) else []
+    for wallet in wallets:
+        if isinstance(wallet, dict):
+            push(wallet.get('wallet_address'), wallet)
+    for name in ('whitelist_wallets.json', 'watchlist_wallets.json'):
+        for wallet in _read_json_list(root / 'data' / name):
+            if isinstance(wallet, dict):
+                push(wallet.get('wallet_address') or wallet.get('address'), wallet)
+    for candidate in _prioritised_candidates(_read_json_list(root / 'data' / 'candidate_wallets_smartmoney.json')):
+        push(candidate.get('wallet_address'), candidate)
+        if len(selected) >= max_addresses:
+            break
+    return selected
+
+
+def _prefilter_active_addresses(
+    fetcher: Any,
+    addresses: list[str],
+    gates: dict[str, float | int],
+    *,
+    stats_limit: int,
+    pause_seconds: float,
+    sleeper: Any,
+) -> tuple[set[str], dict[str, str] | None]:
+    """Drop inactive names using batched profit rows before the slow stats call.
+
+    Returns ``(kept, None)`` when profits are unavailable, which means every
+    address still needs a full score.
+    """
+    if not addresses or not hasattr(fetcher, 'fetch_wallet_profits'):
+        return set(addresses), None
+    try:
+        profits = {
+            window: _fetch_profit_map(fetcher, addresses, window, pause_seconds=pause_seconds, sleeper=sleeper)
+            for window in ('7d', '30d')
+        }
+    except Exception:
+        return set(addresses), None
+    ranked: list[tuple[float, str]] = []
+    reasons: dict[str, str] = {}
+    for address in addresses:
+        trades_7d = _profit_trade_count(profits['7d'].get(address))
+        trades_30d = _profit_trade_count(profits['30d'].get(address))
+        realized = _profit_usd(profits['30d'].get(address))
+        if trades_7d < int(gates['min_trades_7d']) or trades_30d < int(gates['min_total_trades']) or realized <= 0:
+            reasons[address] = '7日成交、30日样本或已实现收益没过线'
+            continue
+        ranked.append((realized, address))
+    ranked.sort(reverse=True)
+    kept = {address for _realized, address in ranked[:stats_limit]}
+    for _realized, address in ranked[stats_limit:]:
+        reasons[address] = '活跃且盈利，本轮只完整评分已实现收益更高的钱包'
+    return kept, reasons
+
+
+def _fetch_profit_map(
+    fetcher: Any,
+    addresses: list[str],
+    window: str,
+    *,
+    pause_seconds: float,
+    sleeper: Any,
+) -> dict[str, Any]:
+    found: dict[str, Any] = {}
+    for start in range(0, len(addresses), _BATCH_SIZE):
+        batch = addresses[start:start + _BATCH_SIZE]
+        data = fetcher.fetch_wallet_profits(batch, period=window)
+        if isinstance(data, dict):
+            found.update(data)
+        if pause_seconds > 0 and start + _BATCH_SIZE < len(addresses):
+            sleeper(pause_seconds)
+    return found
+
+
+def _profit_trade_count(row: object) -> int:
+    if not isinstance(row, dict):
+        return 0
+    try:
+        return int(float(row.get('buy') or 0)) + int(float(row.get('sell') or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _profit_usd(row: object) -> float:
+    if not isinstance(row, dict):
+        return 0.0
+    try:
+        return float(row.get('realized_profit') or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _fetch_screen_windows(
+    fetcher: Any,
+    addresses: list[str],
+    windows: list[str],
+    *,
+    pause_seconds: float,
+    sleeper: Any,
+) -> dict[str, dict[str, Any]]:
+    """Fetch one wallet at a time. GMGN rejects a comma-joined address list."""
+    stats_by_window: dict[str, dict[str, Any]] = {window: {} for window in windows}
+    for address in addresses:
+        for window in windows:
+            try:
+                data = fetcher.fetch_wallet_stats([address], period=window)
+            except Exception:
+                data = None
+            if isinstance(data, dict):
+                stats_by_window[window].update(_normalise_wallet_stats([address], data))
+            if pause_seconds > 0:
+                sleeper(pause_seconds)
+    return stats_by_window
+
+
+def _screen_reject_reason(record: dict[str, Any], gates: dict[str, float | int]) -> str:
+    reasons = record.get('score_reasons') if isinstance(record.get('score_reasons'), list) else []
+    if reasons:
+        return str(reasons[0])
+    stats = record.get('stats') if isinstance(record.get('stats'), dict) else {}
+    score = float(record.get('total_score') or 0)
+    winrate = float(stats.get('winrate') or 0)
+    trades = int(float(stats.get('total_trades') or 0))
+    trades_7d = int(float(stats.get('trades_7d') or 0))
+    if score < float(gates['min_score']):
+        return f"score {score:g} < {gates['min_score']:g}"
+    if winrate < float(gates['min_win_rate_percent']):
+        return f"win rate {winrate:g}% < {gates['min_win_rate_percent']:g}%"
+    if trades < int(gates['min_total_trades']):
+        return f"trades {trades} < {gates['min_total_trades']}"
+    if trades_7d < int(gates['min_trades_7d']):
+        return f"trades_7d {trades_7d} < {gates['min_trades_7d']}"
+    return 'below copy gates'
+
+
+def _screen_row(
+    address: str,
+    source: dict[str, Any],
+    record: dict[str, Any] | None,
+    *,
+    qualified: bool,
+    reason: str,
+) -> dict[str, Any]:
+    stats = record.get('stats') if isinstance(record, dict) and isinstance(record.get('stats'), dict) else {}
+    return {
+        'wallet_address': address,
+        'label': source.get('label') or '',
+        'total_score': None if record is None else record.get('total_score'),
+        'grade': None if record is None else record.get('grade'),
+        'qualified': qualified,
+        'scored': record is not None,
+        'reason': reason,
+        'winrate': stats.get('winrate'),
+        'total_trades': stats.get('total_trades'),
+        'trades_7d': stats.get('trades_7d'),
+        'trades_30d': stats.get('trades_30d'),
+        'realized_profit': stats.get('realized_profit'),
+        'period': stats.get('period'),
+    }
+
+
+def _apply_qualified_follow_list(root: Path, follow_records: list[dict[str, Any]]) -> None:
+    config_path = root / 'config' / 'wallet_whitelist.json'
+    config = _read_json_object(config_path)
+    existing_wallets = config.get('wallets') if isinstance(config.get('wallets'), list) else []
+    existing_by_address = {
+        str(wallet.get('wallet_address') or '').lower(): wallet
+        for wallet in existing_wallets
+        if isinstance(wallet, dict) and wallet.get('wallet_address')
+    }
+    if follow_records:
+        wallets = [
+            _qualified_follow_wallet(record, existing_by_address.get(str(record.get('wallet_address') or '').lower()), index)
+            for index, record in enumerate(follow_records, start=1)
+        ]
+    else:
+        wallets = []
+        for wallet in existing_wallets:
+            if not isinstance(wallet, dict):
+                continue
+            updated = dict(wallet)
+            updated['enabled'] = False
+            if str(updated.get('mode') or '') == 'follow':
+                updated['mode'] = 'observe'
+            wallets.append(updated)
+    config['wallets'] = wallets
+    config.setdefault('version', '1.0')
+    config.setdefault('trade_mode', 'paper')
+    config['updated_at'] = datetime.now(timezone.utc).isoformat()
+    _recalculate_copy_weights(config)
+    atomic_write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', config_path)
+
+
+def _qualified_follow_wallet(record: dict[str, Any], existing: dict[str, Any] | None, index: int) -> dict[str, Any]:
+    wallet = dict(existing) if existing else _promoted_wallet(record, index)
+    stats = record.get('stats') if isinstance(record.get('stats'), dict) else {}
+    address = str(record.get('wallet_address') or record.get('address') or '')
+    wallet['wallet_address'] = address
+    wallet['total_score'] = record.get('total_score')
+    wallet['grade'] = record.get('grade')
+    wallet['mode'] = 'follow'
+    wallet['enabled'] = True
+    wallet['dimension_scores'] = record.get('dimension_scores') if isinstance(record.get('dimension_scores'), dict) else {}
+    wallet['score_reasons'] = record.get('score_reasons') if isinstance(record.get('score_reasons'), list) else []
+    wallet['scored_at'] = record.get('scored_at')
+    wallet['stats_snapshot'] = {
+        'period': stats.get('period'),
+        'total_trades': stats.get('total_trades'),
+        'realized_profit': stats.get('realized_profit'),
+        'winrate': stats.get('winrate'),
+        'avg_holding_hours': stats.get('avg_holding_hours'),
+        'trades_7d': stats.get('trades_7d'),
+        'trades_30d': stats.get('trades_30d'),
+    }
+    if not existing:
+        wallet['label'] = f'qualified_{index}'
+    wallet['notes'] = '实盘筛选合格：分数、胜率、样本和 7 日成交都过线。'
+    return wallet
+
+
+def _replace_scored_whitelist(root: Path, qualified_records: list[dict[str, Any]]) -> None:
+    qualified_addresses = {
+        str(record.get('wallet_address') or '').lower()
+        for record in qualified_records
+    }
+    watchlist = [item for item in _read_json_list(root / 'data' / 'watchlist_wallets.json') if isinstance(item, dict)]
+    blacklist = [item for item in _read_json_list(root / 'data' / 'blacklist_wallets.json') if isinstance(item, dict)]
+    for address in qualified_addresses:
+        _remove_record(watchlist, address)
+        _remove_record(blacklist, address)
+    _write_json_list(root / 'data' / 'whitelist_wallets.json', qualified_records)
+    _write_json_list(root / 'data' / 'watchlist_wallets.json', watchlist)
+    _write_json_list(root / 'data' / 'blacklist_wallets.json', blacklist)
 
 
 def _build_fetcher(*, chain: str, api_key: str | None) -> RealWalletFetcher:

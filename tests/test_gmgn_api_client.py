@@ -69,6 +69,21 @@ class TestGmgnApiClientMethods:
         assert "client_id=" in req.full_url
 
     @patch("gmgn_monitor.gmgn_api_client.urllib.request.urlopen")
+    def test_get_wallet_profits_posts_address_list(self, mock_urlopen, client):
+        mock_urlopen.return_value = self._make_cm_response({"list": []})
+
+        client.get_wallet_profits(chain="sol", wallet_addresses=["addr1", "addr2"], period="30d")
+
+        req = mock_urlopen.call_args[0][0]
+        assert req.get_method() == "POST"
+        assert "/v1/user/wallet_profits" in req.full_url
+        assert json.loads(req.data.decode("utf-8")) == {
+            "chain": "sol",
+            "period": "30d",
+            "wallet_addresses": ["addr1", "addr2"],
+        }
+
+    @patch("gmgn_monitor.gmgn_api_client.urllib.request.urlopen")
     def test_get_wallet_activity(self, mock_urlopen, client):
         mock_urlopen.return_value = self._make_cm_response(
             {"activities": [{"tx_hash": "abc"}]}

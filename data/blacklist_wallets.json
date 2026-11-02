@@ -1117,44 +1117,6 @@
     }
   },
   {
-    "wallet_address": "6FpZdYmBtbXCCAYUpAJ6qE812wz87tcEyRvTUa8U5Nsd",
-    "total_score": 0.0,
-    "grade": "E",
-    "decision": "reject",
-    "score_reasons": [
-      "ultra-high frequency bot: 1473 trades in 7d > 500"
-    ],
-    "filter_decision": "reject",
-    "filter_score": 0,
-    "filter_reasons": [
-      "7-day trades 1473 exceeds 500 (bot pattern)"
-    ],
-    "hard_rejected": true,
-    "robot_score": 30.0,
-    "tags": [
-      "axiom",
-      "smart_degen"
-    ],
-    "volume_usd": 252799.59,
-    "trades_snapshot": 1473,
-    "stats": {
-      "total_trades": 1473,
-      "realized_profit": 6057.285705717603,
-      "winrate": 63.745019920318725,
-      "token_num": 280,
-      "avg_holding_hours": 51.46868650793651,
-      "wallet_age_days": 21.423310185185183
-    },
-    "dimension_scores": {
-      "profitability": 0.0,
-      "win_rate": 0.0,
-      "risk_control": 0.0,
-      "consistency": 0.0,
-      "activity": 0.0,
-      "stability": 0.0
-    }
-  },
-  {
     "wallet_address": "XppYcY1RZyDTLayChp87oyJtAE9azfTyfJTvv3YK45f",
     "total_score": 0.0,
     "grade": "E",
@@ -4873,54 +4835,6 @@
       "stability": 0.0
     },
     "scored_at": "2026-07-05T14:30:22.647527+00:00"
-  },
-  {
-    "wallet_address": "4DdrfiDHpmx55i4SPssxVzS9ZaKLb8qr45NKY9Er9nNh",
-    "address": "4DdrfiDHpmx55i4SPssxVzS9ZaKLb8qr45NKY9Er9nNh",
-    "chain": "sol",
-    "source": "gmgn_token_smart_degen_traders",
-    "total_score": 0.0,
-    "grade": "E",
-    "decision": "reject",
-    "score_reasons": [
-      "consistent losses: total_pnl -106.3262 < 0.0 with >50 trades"
-    ],
-    "filter_decision": "reject",
-    "filter_score": 0,
-    "filter_reasons": [
-      "total profit $-15948.92 negative with 388 trades"
-    ],
-    "hard_rejected": true,
-    "robot_score": 20.0,
-    "stats": {
-      "period": "7d",
-      "realized_profit": -15948.92,
-      "winrate": 80.82,
-      "total_trades": 388,
-      "trades_7d": 388,
-      "trades_30d": 388,
-      "avg_holding_hours": 39.09
-    },
-    "window_stats": {
-      "7d": {
-        "period": "7d",
-        "realized_profit": -15948.92,
-        "winrate": 80.82,
-        "total_trades": 388,
-        "trades_7d": 388,
-        "trades_30d": 388,
-        "avg_holding_hours": 39.09
-      }
-    },
-    "dimension_scores": {
-      "profitability": 0.0,
-      "win_rate": 0.0,
-      "risk_control": 0.0,
-      "consistency": 0.0,
-      "activity": 0.0,
-      "stability": 0.0
-    },
-    "scored_at": "2026-07-05T14:30:23.658393+00:00"
   },
   {
     "wallet_address": "8KQriAKQrWJY2CPMLGmxwMz2sEhKjq6hEd3Rwx1B5Zu6",
