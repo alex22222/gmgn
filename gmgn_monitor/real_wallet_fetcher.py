@@ -94,6 +94,42 @@ class RealWalletFetcher:
         )
         return self._unwrap_data(data)
 
+    def fetch_wallet_profits(
+        self,
+        wallet_addresses: list[str],
+        period: str = "7d",
+    ) -> dict[str, Any]:
+        """Fetch batched profit rows keyed by wallet address.
+
+        GMGN ``wallet_stats`` answers one wallet per call. ``wallet_profits``
+        accepts up to 100 and is enough to drop inactive names before scoring.
+        """
+        if self._client is None:
+            if not self._mock_fallback:
+                raise RuntimeError("No API key configured and mock_fallback is disabled")
+            return {}
+        data = self._unwrap_data(self._client.get_wallet_profits(
+            chain=self._chain,
+            wallet_addresses=wallet_addresses,
+            period=period,
+        ))
+        rows: list[Any]
+        if isinstance(data, dict):
+            nested = data.get("list")
+            rows = nested if isinstance(nested, list) else []
+        elif isinstance(data, list):
+            rows = data
+        else:
+            rows = []
+        keyed: dict[str, Any] = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            address = str(row.get("wallet_address") or "").strip()
+            if address:
+                keyed[address] = row
+        return keyed
+
     def fetch_wallet_activity(
         self,
         wallet_address: str,
