@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+from collections.abc import Callable
 from pathlib import Path
 import ssl
 import subprocess
@@ -246,6 +247,20 @@ def build_message(sub_path: str, query_params: dict[str, Any], body: str | None,
     return f"{sub_path}:{sorted_qs}:{body or ''}:{timestamp}"
 
 
+def _is_stale_timestamp(message: str) -> bool:
+    """GMGN rejects an auth query once its ``timestamp`` is too old."""
+    return "timestamp expired" in message.lower()
+
+
+def _http_error_message(error: urllib.error.HTTPError) -> tuple[str, int | None]:
+    try:
+        error_body = error.read().decode("utf-8")
+        error_parsed = json.loads(error_body)
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError):
+        return f"HTTP {error.code}: {error.reason}", None
+    return str(error_parsed.get("message", f"HTTP {error.code}")), error_parsed.get("code")
+
+
 def _clean_body_for_json(obj: Any) -> Any:
     """Recursively convert float values that are whole numbers to int.
 
@@ -331,16 +346,17 @@ class GmgnApiClient:
         body: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Make an *exist*-auth request (no signature required)."""
-        auth = self._build_auth_query()
-        query: dict[str, Any] = {**(query_extra or {}), **auth}
-        url = self._build_url(sub_path, query)
-        headers = {
-            "X-APIKEY": self._api_key,
-            "Content-Type": "application/json",
-            "User-Agent": USER_AGENT,
-        }
-        body_str = json.dumps(body) if body else None
-        return self._execute(method, url, headers, body_str)
+        def prepare() -> tuple[str, str, dict[str, str], str | None]:
+            query: dict[str, Any] = {**(query_extra or {}), **self._build_auth_query()}
+            headers = {
+                "X-APIKEY": self._api_key,
+                "Content-Type": "application/json",
+                "User-Agent": USER_AGENT,
+            }
+            body_str = json.dumps(body) if body else None
+            return method, self._build_url(sub_path, query), headers, body_str
+
+        return self._execute(prepare)
 
     def _auth_signed_request(
         self,
@@ -354,34 +370,38 @@ class GmgnApiClient:
             raise GmgnApiError(
                 "GMGN_PRIVATE_KEY is required for signed-auth endpoints."
             )
-        auth = self._build_auth_query()
-        query: dict[str, Any] = {**(query_extra or {}), **auth}
-        # Match JavaScript JSON.stringify: 2.0 -> "2", not "2.0"
-        body_cleaned = _clean_body_for_json(body) if body else None
-        body_str = json.dumps(body_cleaned, separators=(',', ':')) if body_cleaned else ""
-        message = build_message(sub_path, query, body_str, auth["timestamp"])
-        signature = self._signer.sign(message)
-        url = self._build_url(sub_path, query)
-        headers = {
-            "X-APIKEY": self._api_key,
-            "X-Signature": signature,
-            "Content-Type": "application/json",
-            "User-Agent": USER_AGENT,
-        }
-        return self._execute(method, url, headers, body_str or None)
+
+        def prepare() -> tuple[str, str, dict[str, str], str | None]:
+            auth = self._build_auth_query()
+            query: dict[str, Any] = {**(query_extra or {}), **auth}
+            # Match JavaScript JSON.stringify: 2.0 -> "2", not "2.0"
+            body_cleaned = _clean_body_for_json(body) if body else None
+            body_str = json.dumps(body_cleaned, separators=(',', ':')) if body_cleaned else ""
+            message = build_message(sub_path, query, body_str, auth["timestamp"])
+            headers = {
+                "X-APIKEY": self._api_key,
+                "X-Signature": self._signer.sign(message),
+                "Content-Type": "application/json",
+                "User-Agent": USER_AGENT,
+            }
+            return method, self._build_url(sub_path, query), headers, body_str or None
+
+        return self._execute(prepare)
 
     def _execute(
         self,
-        method: str,
-        url: str,
-        headers: dict[str, str],
-        body_str: str | None,
+        prepare: Callable[[], tuple[str, str, dict[str, str], str | None]],
     ) -> dict[str, Any]:
-        """Execute a prepared HTTP request with retry logic."""
+        """Execute a prepared HTTP request with retry logic.
+
+        Each attempt calls *prepare* again. GMGN rejects a stale ``timestamp``,
+        and a signed request also has to be signed over that new timestamp.
+        """
         max_retries = 1
-        data = body_str.encode("utf-8") if body_str else None
 
         for attempt in range(max_retries + 1):
+            method, url, headers, body_str = prepare()
+            data = body_str.encode("utf-8") if body_str else None
             req = urllib.request.Request(url, data=data, headers=headers, method=method)
             try:
                 kwargs: dict[str, Any] = {"timeout": DEFAULT_TIMEOUT}
@@ -396,28 +416,13 @@ class GmgnApiClient:
                     response.close()
             except urllib.error.HTTPError as e:
                 if e.code == 429 and attempt < max_retries:
-                    reset_ts = e.headers.get("x-ratelimit-reset")
-                    if reset_ts:
-                        wait_until = float(reset_ts) + 1.0
-                        sleep_time = min(30.0, max(0.1, wait_until - time.time()))
-                        time.sleep(sleep_time)
-                    else:
-                        time.sleep(1.0)
+                    self._sleep_for_rate_limit(e)
                     continue
-                try:
-                    error_body = e.read().decode("utf-8")
-                    error_parsed = json.loads(error_body)
-                    raise GmgnApiError(
-                        error_parsed.get("message", f"HTTP {e.code}"),
-                        code=error_parsed.get("code"),
-                        http_status=e.code,
-                    ) from e
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    raise GmgnApiError(
-                        f"HTTP {e.code}: {e.reason}",
-                        code=None,
-                        http_status=e.code,
-                    ) from e
+                message, code = _http_error_message(e)
+                if attempt < max_retries and _is_stale_timestamp(message):
+                    time.sleep(0.2)
+                    continue
+                raise GmgnApiError(message, code=code, http_status=e.code) from e
             except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
                 if attempt < max_retries:
                     time.sleep(1.0)
@@ -431,14 +436,28 @@ class GmgnApiClient:
                 ) from e
 
             if parsed.get("code", 0) != 0:
+                message = str(parsed.get("message", "Unknown API error"))
+                if attempt < max_retries and _is_stale_timestamp(message):
+                    time.sleep(0.2)
+                    continue
                 raise GmgnApiError(
-                    parsed.get("message", "Unknown API error"),
+                    message,
                     code=parsed.get("code"),
                     http_status=None,
                 )
             return parsed.get("data", {})
 
         raise GmgnApiError("Rate limit retry exceeded")
+
+    @staticmethod
+    def _sleep_for_rate_limit(error: urllib.error.HTTPError) -> None:
+        reset_ts = error.headers.get("x-ratelimit-reset")
+        if reset_ts:
+            wait_until = float(reset_ts) + 1.0
+            sleep_time = min(30.0, max(0.1, wait_until - time.time()))
+            time.sleep(sleep_time)
+            return
+        time.sleep(1.0)
 
     # ------------------------------------------------------------------
     # Public API — Exist auth (read-only)
