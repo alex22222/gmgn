@@ -1808,7 +1808,7 @@ class DashboardTest(unittest.TestCase):
         self.assertNotIn('diagnosticHeadline', INDEX_HTML)
         self.assertIn('class="header-gate"', INDEX_HTML)
         self.assertNotIn('<span>自动化安全门</span>', INDEX_HTML)
-        self.assertIn('class="gmgn-avatar"', INDEX_HTML)
+        self.assertIn('class="brand-mark"', INDEX_HTML)
         self.assertIn('rel="icon"', INDEX_HTML)
         self.assertIn('leader-status-stack', INDEX_HTML)
         self.assertIn('renderLeaderPoolStatusCards', INDEX_HTML)
