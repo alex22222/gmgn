@@ -7,7 +7,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .config_manager import ConfigManager
+from .copy_risk import CopyRiskProfile, load_copy_risk
 from .gmgn_api_client import GmgnApiClient, GmgnSigner
+from .live_guard import live_buy_block_reason, load_automation_gate
 from .order_manager import Order, OrderManager
 from .portfolio_tracker import PortfolioTracker
 from .risk_manager import RiskCheckResult, RiskManager, RiskLimits
@@ -58,8 +60,8 @@ class RealTradeExecutor:
     """Execute real on-chain trades via the GMGN API.
 
     This executor submits actual signed transactions to the Solana blockchain
-    through the GMGN swap endpoint.  Every trade requires human confirmation
-    (unless explicitly disabled, which is not recommended).
+    through the GMGN swap endpoint. Tiny auto-confirm still refuses the swap
+    unless the automation gate is open and the order is inside the copy caps.
 
     Usage::
 
@@ -82,6 +84,8 @@ class RealTradeExecutor:
         api_key: str | None = None,
         private_key_pem: str | None = None,
         risk_limits: RiskLimits | None = None,
+        copy_risk: CopyRiskProfile | None = None,
+        gate_config: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the real trade executor.
 
@@ -89,16 +93,21 @@ class RealTradeExecutor:
             wallet_address: The Solana wallet address to trade from.
                 Must be provided explicitly; no default is used.
             chain: Blockchain identifier (default ``"sol"``).
-            auto_confirm: If ``True``, skip human confirmation (dangerous).
-                Defaults to ``False`` to require human approval per AGENTS.md.
+            auto_confirm: If ``True``, skip the stdin prompt. The gate and
+                copy caps are still enforced.
             api_key: GMGN API key.  If ``None``, loaded from config.
             private_key_pem: Ed25519 private key PEM.  If ``None``, loaded
                 from config.
             risk_limits: Risk management limits.  If ``None``, uses defaults.
+            copy_risk: Absolute SOL and slippage caps. Defaults to the copy sheet.
+            gate_config: When set, tests pin the gate. Production re-reads the
+                gate file on every order so the kill switch applies immediately.
         """
         self._chain = chain
         self._wallet_address = wallet_address
         self._auto_confirm = auto_confirm
+        self._copy_risk = copy_risk or load_copy_risk()
+        self._gate_override = gate_config
         self._risk_limits = risk_limits or RiskLimits(
             daily_loss_limit_percent=5.0,
             max_single_position_percent=20.0,
@@ -139,11 +148,12 @@ class RealTradeExecutor:
         """Execute a single real-money trade.
 
         Steps:
-        1. Human confirmation (unless ``auto_confirm=True``)
-        2. Risk check
-        3. Build swap parameters
-        4. Submit via GMGN API (signed auth)
-        5. Wait for confirmation
+        1. Refuse unless the automation gate is open and the order is inside
+           the copy caps
+        2. Human confirmation (unless tiny auto-confirm is armed)
+        3. Risk check
+        4. Build swap parameters
+        5. Submit via GMGN API (signed auth)
         6. Record execution result
 
         Args:
@@ -154,7 +164,20 @@ class RealTradeExecutor:
         """
         start_time = time.perf_counter()
 
-        # 1. Human confirmation
+        blocked = self._live_buy_block_reason(signal)
+        if blocked:
+            return ExecutionResult(
+                success=False,
+                trade_execution=None,
+                order_id=None,
+                tx_hash=None,
+                error_message=blocked,
+                gas_cost_sol=0.0,
+                actual_slippage_percent=0.0,
+                confirmation_time_ms=0.0,
+            )
+
+        # Human confirmation. Auto-confirm does not skip the gate above.
         if not self._auto_confirm:
             if not self._confirm_trade(signal):
                 return ExecutionResult(
@@ -279,6 +302,25 @@ class RealTradeExecutor:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _current_gate(self) -> dict[str, Any]:
+        override = getattr(self, "_gate_override", None)
+        if isinstance(override, dict):
+            return override
+        return load_automation_gate()
+
+    def _live_buy_block_reason(self, signal: TradeSignal) -> str | None:
+        profile = getattr(self, "_copy_risk", None)
+        if profile is None:
+            return "live buy guard is not configured"
+        snapshot = self._portfolio.get_snapshot()
+        return live_buy_block_reason(
+            amount_sol=signal.recommended_amount_sol,
+            daily_pnl_sol=snapshot.daily_pnl_sol,
+            slippage_percent=signal.max_slippage_percent,
+            profile=profile,
+            gate_config=self._current_gate(),
+        )
 
     def _confirm_trade(self, signal: TradeSignal) -> bool:
         """Ask for human confirmation before submitting a real trade.

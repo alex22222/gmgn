@@ -114,7 +114,9 @@ class PaperCopyTests(unittest.TestCase):
         self.assertTrue(copy_trading_enabled(paper))
         with self.assertRaises(ValueError):
             resolve_trade_mode(paper, real=True)
-        self.assertEqual(resolve_trade_mode({"trade_mode": "real"}, real=True), "real")
+        armed = {"trade_mode": "real"}
+        self.assertEqual(resolve_trade_mode(armed), "paper")
+        self.assertEqual(resolve_trade_mode(armed, real=True), "real")
 
     def test_paper_buy_executor_confirms_without_building_a_live_executor(self):
         executor = PaperBuyExecutor()

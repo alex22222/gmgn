@@ -98,10 +98,8 @@ def resolve_trade_mode(
                 f"refusing real execution while trade_mode={configured or 'paper'}"
             )
         return "real"
-    if configured in PAPER_MODES or configured == "":
+    if configured in PAPER_MODES or configured in {"", "real"}:
         return "paper"
-    if configured == "real":
-        return "real"
     raise ValueError(f"unsupported trade_mode: {configured}")
 
 

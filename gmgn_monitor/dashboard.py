@@ -2999,7 +2999,10 @@ def _trade_mode_note(mode: str, source: str) -> str:
     if mode in ('dryrun', 'dry_run'):
         return f'来自 {source}；只生成计划和报告，不会真实下单。'
     if mode == 'real':
-        return f'来自 {source}；仅表示配置处于真实模式，执行仍受安全门、限额和命令确认约束。'
+        return (
+            f'来自 {source}；真实跟单只提交 30 分钟内的信号。'
+            '自动化闸门打开且单笔不超过额度时，才允许小额自动确认。'
+        )
     return f'来自 {source}；请检查配置值是否符合预期。'
 
 

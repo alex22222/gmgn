@@ -1,7 +1,7 @@
 {
   "version": "1",
   "profile": "tiny_real_paper",
-  "notes": "跟单执行只认这一份门槛。30 天回看只用于展示 leader 最近成交；超过 max_signal_age_minutes 的成交不进 CSS、不开仓。跟单下单用 css_pass_score 60、观察用 css_watch_score 45；监控管线默认 CSS 仍是通过 70、观察 50。低于 65 分不跟；仪表盘低于 60 分只是复核提醒。单笔 0.01、日亏 0.03、滑点 5% 不变。",
+  "notes": "跟单执行只认这一份门槛，纸面和真实跟单共用。30 天回看只用于展示 leader 最近成交；超过 max_signal_age_minutes 的成交不进 CSS、不开仓。跟单下单用 css_pass_score 60、观察用 css_watch_score 45；监控管线默认 CSS 仍是通过 70、观察 50。低于 65 分不跟；仪表盘低于 60 分只是复核提醒。单笔 0.01、日亏 0.03、滑点 5% 不变。自动化闸门不是 auto_trading_enabled 时，真实下单会被拒绝。",
   "limits": {
     "max_single_trade_sol": 0.01,
     "max_daily_loss_sol": 0.03,

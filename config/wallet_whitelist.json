@@ -1,10 +1,10 @@
 {
   "version": "1.0",
-  "description": "GMGN Phase 2 — paper 跟单（真实 leader 信号，模拟成交；单笔 ≤ 0.01 SOL，日亏损 ≤ 0.03 SOL）",
+  "description": "GMGN Phase 2 — 真实跟单（仅 qualified_1 / qualified_2；单笔 ≤ 0.01 SOL，日亏损 ≤ 0.03 SOL；超过 30 分钟的信号不下单）",
   "exposure_level": "tiny_real",
-  "trade_mode": "paper",
+  "trade_mode": "real",
   "created_at": "2025-07-15T00:00:00+08:00",
-  "updated_at": "2026-11-02T17:56:29.113766+00:00",
+  "updated_at": "2026-11-03T10:09:00+00:00",
   "wallets": [
     {
       "wallet_address": "6FpZdYmBtbXCCAYUpAJ6qE812wz87tcEyRvTUa8U5Nsd",
@@ -132,7 +132,7 @@
     "rebalance_frequency": "daily",
     "audit_log_enabled": true,
     "feishu_alert_enabled": true,
-    "auto_confirm": false,
+    "auto_confirm": true,
     "copy_trading_enabled": true,
     "risk_profile": "config/copy_risk.json",
     "paper_signal_source": "gmgn-cli portfolio activity"
