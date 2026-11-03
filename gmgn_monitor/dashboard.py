@@ -3157,13 +3157,13 @@ def main() -> int:
 
 
 INDEX_HTML = r'''<!doctype html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GMGN 扫链监控</title>
-  <meta name="color-scheme" content="dark">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23f5c14f'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-family='sans-serif' font-size='34' font-weight='700' fill='%23171108'%3EG%3C/text%3E%3C/svg%3E">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235266eb'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-family='sans-serif' font-size='34' font-weight='700' fill='%23ffffff'%3EG%3C/text%3E%3C/svg%3E">
   <script>
     (() => {
       const path = window.location.pathname;
@@ -3182,32 +3182,37 @@ INDEX_HTML = r'''<!doctype html>
   </script>
   <style>
     :root {
-      color-scheme: dark;
-      --bg: #07090d;
-      --surface: #11151c;
-      --surface-2: #171d26;
-      --surface-3: #1c2430;
-      --line: #29313d;
-      --line-soft: rgba(255, 255, 255, .08);
-      --ink: #f5f7fa;
-      --muted: #8f9baa;
-      --faint: #5f6b7a;
-      --brand: #f5c14f;
-      --brand-strong: #f8d27a;
-      --brand-ink: #171108;
-      --brand-soft: rgba(245, 193, 79, .12);
+      color-scheme: light;
+      --bg: #f7f7fa;
+      --surface: #ffffff;
+      --surface-2: #f7f7fa;
+      --surface-3: #ececf2;
+      --line: #e4e4eb;
+      --line-soft: #efeff4;
+      --ink: #171721;
+      --muted: #6b6b78;
+      --faint: #9a9aa6;
+      --brand: #5266eb;
+      --brand-strong: #3d52d9;
+      --brand-ink: #ffffff;
+      --brand-soft: rgba(82, 102, 235, .08);
       --accent: var(--brand);
       --accent-2: var(--muted);
-      --good: #51d6a3;
-      --bad: #ff6c78;
-      --warn: #f0a04b;
-      --blue: #78a9ff;
-      --purple: var(--blue);
+      --good: #1f9d55;
+      --bad: #d92d3a;
+      --warn: #b7791f;
+      --blue: #007aff;
+      --purple: #5266eb;
       --soft: var(--brand-soft);
-      --green-soft: rgba(81, 214, 163, .12);
-      --red-soft: rgba(255, 108, 120, .12);
-      --blue-soft: rgba(120, 169, 255, .12);
-      --shadow: 0 18px 48px rgba(0, 0, 0, .24);
+      --green-soft: rgba(31, 157, 85, .1);
+      --red-soft: rgba(217, 45, 58, .08);
+      --blue-soft: rgba(0, 122, 255, .08);
+      --gold: #b7791f;
+      --gold-soft: rgba(183, 121, 31, .1);
+      --warn-bg: rgba(183, 121, 31, .12);
+      --alert-bg: rgba(232, 131, 12, .12);
+      --track: #e4e4eb;
+      --shadow: 0 1px 2px rgba(23, 23, 33, .04);
       --panel: var(--surface);
       --panel-strong: var(--surface-2);
       --glow: none;
@@ -3231,14 +3236,7 @@ INDEX_HTML = r'''<!doctype html>
       min-height: 100vh;
       color: var(--ink);
       font: 14px/1.5 var(--font);
-      background:
-        radial-gradient(circle at 15% -8%, rgba(245, 193, 79, .10), transparent 31rem),
-        radial-gradient(circle at 95% 26%, rgba(120, 169, 255, .06), transparent 34rem),
-        linear-gradient(rgba(255, 255, 255, .012) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, .012) 1px, transparent 1px),
-        var(--bg);
-      background-size: auto, auto, 32px 32px, 32px 32px, auto;
-      background-attachment: fixed;
+      background: var(--bg);
     }
     header {
       position: sticky;
@@ -3252,10 +3250,10 @@ INDEX_HTML = r'''<!doctype html>
       min-height: 58px;
       margin: 10px auto 0;
       padding: 8px 12px;
-      border: 1px solid var(--line-soft);
+      border: 1px solid var(--line);
       border-radius: 16px;
-      background: rgba(14, 18, 24, .88);
-      box-shadow: 0 12px 38px rgba(0, 0, 0, .22);
+      background: rgba(255, 255, 255, .88);
+      box-shadow: 0 1px 2px rgba(23, 23, 33, .04);
       -webkit-backdrop-filter: blur(18px);
       backdrop-filter: blur(18px);
     }
@@ -3277,7 +3275,6 @@ INDEX_HTML = r'''<!doctype html>
       color: var(--brand-ink);
       font-size: 16px;
       font-weight: 900;
-      box-shadow: 0 0 24px rgba(245, 193, 79, .18);
     }
     h1 {
       margin: 0;
@@ -3306,7 +3303,7 @@ INDEX_HTML = r'''<!doctype html>
     }
     .top-nav a:hover {
       color: var(--ink);
-      background: rgba(255, 255, 255, .05);
+      background: rgba(23, 23, 33, .05);
     }
     html[data-page="home"] .top-nav a[href="/#portfolio"],
     html[data-page="leader-pool"] .top-nav a[href="/leader-pool"],
@@ -3338,7 +3335,7 @@ INDEX_HTML = r'''<!doctype html>
       background: var(--surface);
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
+      box-shadow: var(--shadow);
     }
     .hero {
       margin-bottom: 16px;
@@ -3402,8 +3399,8 @@ INDEX_HTML = r'''<!doctype html>
       line-height: 1.45;
     }
     .leader-status-card.warn {
-      border-color: rgba(240, 160, 75, .45);
-      background: rgba(240, 160, 75, .08);
+      border-color: rgba(183, 121, 31, .3);
+      background: var(--gold-soft);
     }
     .metric { position: relative; overflow: hidden; }
     .metric-action {
@@ -3447,10 +3444,10 @@ INDEX_HTML = r'''<!doctype html>
       display: none;
       margin: 0 0 16px;
       padding: 12px 14px;
-      border: 1px solid rgba(240, 160, 75, .35);
+      border: 1px solid rgba(183, 121, 31, .3);
       border-radius: var(--radius-sm);
-      background: rgba(240, 160, 75, .1);
-      color: #f8d7a2;
+      background: var(--warn-bg);
+      color: var(--warn);
     }
     .diagnostics.visible, .log.visible { display: block; }
     .diagnostics strong { display: block; margin-bottom: 5px; }
@@ -3464,10 +3461,10 @@ INDEX_HTML = r'''<!doctype html>
       line-height: 1;
     }
     .ok { background: var(--green-soft); color: var(--good); }
-    .blocked { background: rgba(240, 160, 75, .12); color: var(--warn); }
+    .blocked { background: var(--warn-bg); color: var(--warn); }
     .fail { background: var(--red-soft); color: var(--bad); }
     .status-pill { margin-top: 8px; border: 1px solid var(--line); color: var(--muted); }
-    .status-pill.paused { border-color: rgba(240, 160, 75, .45); color: var(--warn); }
+    .status-pill.paused { border-color: rgba(183, 121, 31, .3); color: var(--warn); background: var(--gold-soft); }
     .workflow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
     .workflow-step { min-height: 150px; padding: 14px; }
     .workflow-step strong { display: block; margin-bottom: 8px; font-size: 13px; }
@@ -3489,7 +3486,7 @@ INDEX_HTML = r'''<!doctype html>
       font-weight: 650;
       background: transparent;
     }
-    tbody tr:hover td { background: rgba(255, 255, 255, .03); }
+    tbody tr:hover td { background: #f7f7fa; }
     .source-table tr.score-low td, .copy-config-table tr.score-low td, tr.score-low td {
       background: var(--red-soft);
       border-top-color: rgba(255, 108, 120, .28);
@@ -3625,7 +3622,7 @@ INDEX_HTML = r'''<!doctype html>
       height: 28px;
       padding: 3px;
       border-radius: 999px;
-      background: #33404e;
+      background: var(--track);
       transition: background .16s ease;
     }
     .gate-switch-knob {
@@ -3633,7 +3630,7 @@ INDEX_HTML = r'''<!doctype html>
       width: 22px;
       height: 22px;
       border-radius: 50%;
-      background: #f5f7fa;
+      background: #ffffff;
       box-shadow: 0 1px 3px rgba(0, 0, 0, .28);
       transition: transform .16s ease;
     }
