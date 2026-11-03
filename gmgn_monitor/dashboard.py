@@ -319,6 +319,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
             except Exception as exc:
                 self._send_json({'ok': False, 'error': str(exc), 'dashboard': build_dashboard_payload(self.root)}, status=400)
             return
+        if path == '/api/leader-pool/confirm-review':
+            try:
+                length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(length).decode('utf-8')
+                payload = json.loads(body) if body else {}
+                result = _confirm_copy_review_leader(self.root, payload)
+                status = 200 if result.get('ok') else 400
+                self._send_json({**result, 'dashboard': build_dashboard_payload(self.root)}, status=status)
+            except Exception as exc:
+                self._send_json({'ok': False, 'error': str(exc), 'dashboard': build_dashboard_payload(self.root)}, status=400)
+            return
         if path == '/api/leader-pool/promote-one':
             try:
                 length = int(self.headers.get('Content-Length', 0))
@@ -2226,6 +2237,105 @@ def _update_leader_pool_config(root: Path, payload: dict[str, object]) -> dict[s
     return {'ok': True, 'leader_pool': _read_leader_pool_state(root)}
 
 
+def _confirm_copy_review_leader(root: Path, payload: dict[str, object]) -> dict[str, object]:
+    wallet_address = str(payload.get('wallet_address') or '').strip()
+    if not wallet_address:
+        raise ValueError('wallet_address is required')
+    root = root.resolve()
+    review_path = root / 'data/copy_leader_review.json'
+    review = _read_json_object(review_path)
+    pending = review.get('pending') if isinstance(review.get('pending'), list) else []
+    rejected = review.get('rejected') if isinstance(review.get('rejected'), list) else []
+    chosen = next(
+        (
+            row for row in pending
+            if isinstance(row, dict) and str(row.get('wallet_address') or '').lower() == wallet_address.lower()
+        ),
+        None,
+    )
+    if chosen is None:
+        raise ValueError('该 Leader 不在待确认名单中。')
+    config_path = root / 'config/wallet_whitelist.json'
+    config = _read_json_object(config_path)
+    wallets = config.get('wallets', [])
+    if not isinstance(wallets, list):
+        raise ValueError('wallet_whitelist.json wallets must be a list')
+    existing = next(
+        (
+            wallet for wallet in wallets
+            if isinstance(wallet, dict) and str(wallet.get('wallet_address') or '').lower() == wallet_address.lower()
+        ),
+        None,
+    )
+    already_follow = (
+        isinstance(existing, dict)
+        and bool(existing.get('enabled'))
+        and str(existing.get('mode') or '') == 'follow'
+    )
+    if existing is None:
+        if len(wallets) >= _MAX_COPY_WHITELIST_LEADERS:
+            return {
+                'ok': False,
+                'error': f'跟单白名单最多 {_MAX_COPY_WHITELIST_LEADERS} 个，当前已满，无法加入观察。',
+                'wallet_address': wallet_address,
+            }
+        wallets.append(_copy_whitelist_wallet_from_scored_leader({
+            'wallet_address': wallet_address,
+            'total_score': chosen.get('total_score'),
+            'grade': chosen.get('grade'),
+            'tags': chosen.get('tags') if isinstance(chosen.get('tags'), list) else ['copy_review'],
+            'stats': {
+                'realized_profit': chosen.get('realized_profit'),
+                'winrate': chosen.get('winrate'),
+                'trades_7d': chosen.get('trades_7d'),
+            },
+        }, len(wallets) + 1))
+        wallets[-1]['mode'] = 'observe'
+        wallets[-1]['enabled'] = False
+        wallets[-1]['notes'] = '人工确认的可跟单复核 leader。只观察，未开启跟单。'
+        config['wallets'] = wallets
+        config['updated_at'] = datetime.now(timezone.utc).isoformat()
+        _recalculate_copy_weights(config)
+        atomic_write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', config_path)
+    chosen['status'] = 'already_following' if already_follow else 'confirmed_observe'
+    chosen['confirmation'] = chosen['status']
+    chosen['follow_enabled'] = already_follow
+    review['pending'] = [
+        row for row in pending
+        if not (isinstance(row, dict) and str(row.get('wallet_address') or '').lower() == wallet_address.lower())
+    ]
+    review['rejected'] = [row for row in rejected if isinstance(row, dict)]
+    review['confirmed'] = [
+        row for row in (review.get('confirmed') if isinstance(review.get('confirmed'), list) else [])
+        if isinstance(row, dict) and str(row.get('wallet_address') or '').lower() != wallet_address.lower()
+    ]
+    review['confirmed'].append(chosen)
+    review['pending_count'] = len(review['pending'])
+    atomic_write_text(json.dumps(review, ensure_ascii=False, indent=2) + '\n', review_path)
+    append_audit_event(
+        root,
+        category='manual_config',
+        action='copy_review_confirm_observe',
+        success=True,
+        source='dashboard',
+        actor='user',
+        object_type='leader',
+        object_id=wallet_address,
+        message='可跟单复核 leader 已人工确认，仅加入观察' if not already_follow else '可跟单复核确认没有改动已开启的跟单',
+        details={'follow_enabled': already_follow, 'mode': 'follow' if already_follow else 'observe'},
+    )
+    if already_follow:
+        message = f'{_short_address(wallet_address)} 已在跟单中，这次确认没有改动跟单开关。'
+    else:
+        message = f'已确认 {_short_address(wallet_address)} 进入观察。跟单仍是关闭的。'
+    return {
+        'ok': True,
+        'message': message,
+        'wallet_address': wallet_address,
+        'follow_enabled': already_follow,
+    }
+
+
 def _promote_single_leader_to_copy_whitelist(root: Path, payload: dict[str, object]) -> dict[str, object]:
     wallet_address = str(payload.get('wallet_address') or '').strip()
     if not wallet_address:
@@ -2621,6 +2731,7 @@ def _read_leader_pool_state(root: Path) -> dict[str, object]:
             'calibration_events': backtest_events,
             'leaders': [_leader_pool_wallet_payload(wallet, configured_addresses) for wallet in backtest_records],
         },
+        'copy_review': _read_copy_leader_review(root),
         'sources': [
             {'label': '扫链候选', 'path': 'data/candidate_wallets_smartmoney.json', 'count': len(discovered)},
             {'label': '评分白名单', 'path': 'data/whitelist_wallets.json', 'count': len(_read_json_list(root / 'data/whitelist_wallets.json'))},
@@ -2629,6 +2740,27 @@ def _read_leader_pool_state(root: Path) -> dict[str, object]:
             {'label': '跟单白名单', 'path': 'config/wallet_whitelist.json', 'count': len(whitelist_wallets)},
             {'label': '评分回测', 'path': 'data/leader_backtest_results.json', 'count': backtest_count},
         ],
+    }
+
+
+def _read_copy_leader_review(root: Path) -> dict[str, object]:
+    payload = _read_json_object(root / 'data/copy_leader_review.json')
+    pending = payload.get('pending') if isinstance(payload.get('pending'), list) else []
+    rejected = payload.get('rejected') if isinstance(payload.get('rejected'), list) else []
+    confirmed = payload.get('confirmed') if isinstance(payload.get('confirmed'), list) else []
+    unavailable = payload.get('unavailable') if isinstance(payload.get('unavailable'), list) else []
+    return {
+        'generated_at': payload.get('generated_at'),
+        'rules': payload.get('rules') if isinstance(payload.get('rules'), dict) else {},
+        'pending_count': len(pending),
+        'rejected_count': len(rejected),
+        'confirmed_count': len(confirmed),
+        'unavailable_count': len(unavailable),
+        'pending': pending,
+        'rejected': rejected,
+        'confirmed': confirmed,
+        'unavailable': unavailable,
+        'note': '分数超过 60 且持仓适合 90 秒跟单的 leader 在这里等待人工确认。确认后只加入观察，不自动开启跟单。',
     }
 
 
@@ -3994,6 +4126,16 @@ INDEX_HTML = r'''<!doctype html>
         </div>
         <div id="leaderPoolLoopStatus" class="notice score-notice"></div>
         <div id="leaderPoolNotice" class="notice score-notice"></div>
+        <div class="leader-list-head">
+          <h3>可跟单复核</h3>
+          <span id="copyReviewSummary" class="small">分数超过 60，且持仓长到下一轮还能看到。确认后只观察，不自动跟单。</span>
+        </div>
+        <div class="portfolio-table-wrap">
+          <table class="source-table">
+            <thead><tr><th>钱包</th><th>评分</th><th>胜率</th><th>利润</th><th>中位持仓</th><th>90秒内平仓</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="copyReviewLeaders"></tbody>
+          </table>
+        </div>
         <div id="leaderFunnel" class="leader-funnel" aria-label="Leader 筛选漏斗"></div>
         <div class="leader-list-head">
           <h3 id="leaderFunnelTitle">扫链候选</h3>
@@ -4324,9 +4466,109 @@ INDEX_HTML = r'''<!doctype html>
           projection,
         });
       }
+      renderCopyLeaderReview(leaderPool);
       renderLeaderFunnel(leaderPool);
       renderLeaderSourceQuality(leaderPool);
       renderLeaderBacktest(leaderPool);
+    }
+
+    function renderCopyLeaderReview(leaderPool) {
+      const body = document.getElementById('copyReviewLeaders');
+      const summary = document.getElementById('copyReviewSummary');
+      if (!body) return;
+      const review = leaderPool.copy_review || {};
+      const pending = review.pending || [];
+      const rejected = review.rejected || [];
+      if (summary) {
+        summary.textContent = `待确认 ${review.pending_count || 0}，已确认观察 ${review.confirmed_count || 0}，未入选 ${review.rejected_count || 0}。确认后只加入观察，不自动开启跟单。`;
+      }
+      body.innerHTML = '';
+      const confirmed = review.confirmed || [];
+      const unavailable = review.unavailable || [];
+      const rows = pending.concat(confirmed).concat(rejected).concat(unavailable);
+      if (!rows.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 8;
+        cell.className = 'empty';
+        cell.textContent = '还没有复核结果。';
+        row.appendChild(cell);
+        body.appendChild(row);
+        return;
+      }
+      for (const leader of rows) {
+        const fit = leader.copy_fit || {};
+        const row = document.createElement('tr');
+        const median = fit.median_hold_seconds;
+        const label = leader.current_label || leader.label || '';
+        const walletText = label ? `${label} ${leader.wallet_address || ''}` : (leader.wallet_address || '');
+        const reasons = (fit.reasons_zh && fit.reasons_zh.length) ? fit.reasons_zh : (fit.reasons || []);
+        let statusText = reasons.join('；') || '未入选';
+        if (leader.status === 'pending_confirmation' && leader.current_follow) {
+          statusText = '当前已跟单，本次筛选不改开关';
+        } else if (leader.status === 'pending_confirmation') {
+          statusText = '待人工确认';
+        } else if (leader.status === 'confirmed_observe') {
+          statusText = '已确认观察，未开启跟单';
+        } else if (leader.status === 'already_following') {
+          statusText = '当前已跟单，确认没有改动开关';
+        } else if (leader.status === 'unavailable') {
+          statusText = leader.error || '暂时读不到成交，未入库';
+        } else if (leader.current_follow) {
+          statusText = `${statusText}。当前跟单保持开启`;
+        }
+        const cells = [
+          walletText,
+          formatOneDecimal(leader.total_score),
+          leader.winrate == null ? '' : `${formatOneDecimal(Number(leader.winrate) <= 1 ? Number(leader.winrate) * 100 : leader.winrate)}%`,
+          leader.realized_profit == null ? '' : formatOneDecimal(leader.realized_profit),
+          median == null ? '' : (median < 90 ? `${median} 秒` : `${formatOneDecimal(median / 60)} 分钟`),
+          fit.fast_close_ratio == null ? '' : `${formatOneDecimal(fit.fast_close_ratio * 100)}%`,
+          statusText,
+        ];
+        for (const value of cells) {
+          const cell = document.createElement('td');
+          cell.textContent = value;
+          row.appendChild(cell);
+        }
+        const action = document.createElement('td');
+        if (leader.status === 'pending_confirmation' && !leader.current_follow) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = '确认观察';
+          button.onclick = () => confirmCopyReviewLeader(leader.wallet_address, button);
+          action.appendChild(button);
+        }
+        row.appendChild(action);
+        body.appendChild(row);
+      }
+    }
+
+    async function confirmCopyReviewLeader(walletAddress, button) {
+      if (!walletAddress) return;
+      const status = document.getElementById('leaderPoolActionStatus');
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = '确认中';
+      if (status) status.textContent = '正在加入观察，不开启跟单...';
+      try {
+        const response = await fetch('/api/leader-pool/confirm-review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet_address: walletAddress }),
+        });
+        const result = await readJson(response);
+        dashboard = result.dashboard || dashboard;
+        render();
+        if (!response.ok || !result.ok) {
+          throw new Error(result.error || '确认失败');
+        }
+        if (status) status.textContent = result.message || '已加入观察';
+      } catch (error) {
+        if (status) status.textContent = `确认失败：${String(error)}`;
+        button.disabled = false;
+        button.textContent = originalText;
+      }
     }
 
     function renderLeaderSourceQuality(leaderPool) {

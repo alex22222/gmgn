@@ -1,0 +1,449 @@
+{
+  "generated_at": "2026-11-03T17:21:17.196693+00:00",
+  "rules": {
+    "min_score_exclusive": 60.0,
+    "min_median_hold_seconds": 900,
+    "max_fast_close_ratio": 0.5,
+    "fast_close_seconds": 90,
+    "min_closed_trips": 8,
+    "reject_tags": [
+      "arbitrager",
+      "wash_trader"
+    ],
+    "auto_follow": false
+  },
+  "pending_count": 0,
+  "rejected_count": 10,
+  "pending": [],
+  "rejected": [
+    {
+      "wallet_address": "6HcrxubcevZQs1fcPTVnywzw7N2XWqsyAPxqnmg78UMg",
+      "label": "",
+      "total_score": 80.28,
+      "grade": "A",
+      "hard_rejected": false,
+      "score_source": "watchlist_wallets.json",
+      "winrate": 100.0,
+      "realized_profit": -333432.5965318484,
+      "trades_7d": 45,
+      "tags": [
+        "arbitrager",
+        "axiom"
+      ],
+      "filter_reasons": [
+        "new wallet 0d (-10)",
+        "low stop-loss discipline 0.0% (-5)"
+      ],
+      "status": "rejected",
+      "copy_fit": {
+        "decision": "rejected",
+        "reasons": [
+          "realized profit is not positive after fees",
+          "tagged arbitrager"
+        ],
+        "closed_round_trips": 27,
+        "fast_close_count": 0,
+        "fast_close_ratio": 0.0,
+        "median_hold_seconds": 674461,
+        "blocked_tags": [
+          "arbitrager"
+        ],
+        "reasons_zh": [
+          "扣费后已实现利润不是正数",
+          "标签含 arbitrager"
+        ]
+      },
+      "follow_enabled": false,
+      "current_follow": false,
+      "confirmation": "not_offered",
+      "current_label": ""
+    },
+    {
+      "wallet_address": "GV6UUmNxz2RpKxmNAPadYKb7uQpszwqQAu3qLJxVdC52",
+      "label": "",
+      "total_score": 76.93,
+      "grade": "B",
+      "hard_rejected": false,
+      "score_source": "watchlist_wallets.json",
+      "winrate": 100.0,
+      "realized_profit": -381709.4571315042,
+      "trades_7d": 24,
+      "tags": [
+        "arbitrager"
+      ],
+      "filter_reasons": [
+        "new wallet 0d (-10)",
+        "low stop-loss discipline 0.0% (-5)"
+      ],
+      "status": "rejected",
+      "copy_fit": {
+        "decision": "rejected",
+        "reasons": [
+          "realized profit is not positive after fees",
+          "tagged arbitrager"
+        ],
+        "closed_round_trips": 8,
+        "fast_close_count": 0,
+        "fast_close_ratio": 0.0,
+        "median_hold_seconds": 1232615,
+        "blocked_tags": [
+          "arbitrager"
+        ],
+        "reasons_zh": [
+          "扣费后已实现利润不是正数",
+          "标签含 arbitrager"
+        ]
+      },
+      "follow_enabled": false,
+      "current_follow": false,
+      "confirmation": "not_offered",
+      "current_label": ""
+    },
+    {
+      "wallet_address": "6FpZdYmBtbXCCAYUpAJ6qE812wz87tcEyRvTUa8U5Nsd",
+      "label": "qualified_1",
+      "total_score": 75.1,
+      "grade": "B",
+      "hard_rejected": false,
+      "score_source": "whitelist_wallets.json",
+      "winrate": 71.38,
+      "realized_profit": 13330.98355024462,
+      "trades_7d": 338,
+      "tags": [
+        "axiom",
+        "smart_degen"
+      ],
+      "filter_reasons": [
+        "high frequency 338 trades/7d (-10)",
+        "new wallet 0d (-10)",
+        "low stop-loss discipline 0.0% (-5)"
+      ],
+      "status": "rejected",
+      "copy_fit": {
+        "decision": "rejected",
+        "reasons": [
+          "14/15 round trips close within 90s",
+          "median hold 3s < 900s"
+        ],
+        "closed_round_trips": 15,
+        "fast_close_count": 14,
+        "fast_close_ratio": 0.9333,
+        "median_hold_seconds": 3,
+        "blocked_tags": [],
+        "reasons_zh": [
+          "14/15 笔在 90 秒内平仓",
+          "中位持仓 3 秒，短于 15 分钟"
+        ]
+      },
+      "follow_enabled": false,
+      "current_follow": true,
+      "confirmation": "not_offered",
+      "current_label": "qualified_1"
+    },
+    {
+      "wallet_address": "4DdrfiDHpmx55i4SPssxVzS9ZaKLb8qr45NKY9Er9nNh",
+      "label": "qualified_2",
+      "total_score": 70.19,
+      "grade": "B",
+      "hard_rejected": false,
+      "score_source": "whitelist_wallets.json",
+      "winrate": 64.83,
+      "realized_profit": 25610.564475299707,
+      "trades_7d": 162,
+      "tags": [
+        "wash_trader",
+        "pump_smart",
+        "app_smart_money",
+        "padre",
+        "arbitrager",
+        "top_followed",
+        "top_renamed"
+      ],
+      "filter_reasons": [
+        "high frequency 162 trades/7d (-10)",
+        "new wallet 0d (-10)",
+        "low stop-loss discipline 0.0% (-5)"
+      ],
+      "status": "rejected",
+      "copy_fit": {
+        "decision": "rejected",
+        "reasons": [
+          "tagged arbitrager, wash_trader",
+          "median hold 383s < 900s"
+        ],
+        "closed_round_trips": 16,
+        "fast_close_count": 6,
+        "fast_close_ratio": 0.375,
+        "median_hold_seconds": 383,
+        "blocked_tags": [
+          "arbitrager",
+          "wash_trader"
+        ],
+        "reasons_zh": [
+          "标签含 arbitrager, wash_trader",
+          "中位持仓 383 秒，短于 15 分钟"
+        ]
+      },
+      "follow_enabled": false,
+      "current_follow": true,
+      "confirmation": "not_offered",
+      "current_label": "qualified_2"
+    },
+    {
+      "wallet_address": "FXE4w73n3Ar62ZpthSqSCvdq6igZMThBFsHJoLrAJQfv",
+      "label": "",
+      "total_score": 64.87,
+      "grade": "C",
+      "hard_rejected": false,
+      "score_source": "watchlist_wallets.json",
+      "winrate": 64.15,
+      "realized_profit": -105.22766251249539,
+      "trades_7d": 317,
+      "tags": [
+        "arbitrager"
+      ],
+      "filter_reasons": [
+        "high frequency 317 trades/7d (-10)",
+        "new wallet 0d (-10)",
+        "low stop-loss discipline 0.0% (-5)"
+      ],
+      "status": "rejected",
+      "copy_fit": {
+        "decision": "rejected",
+        "reasons": [
+          "realized profit is not positive after fees",
+          "tagged arbitrager"
+        ],
+        "closed_round_trips": 19,
+        "fast_close_count": 0,
+        "fast_close_ratio": 0.0,
+        "median_hold_seconds": 65994,
+        "blocked_tags": [
+          "arbitrager"
+        ],
+        "reasons_zh": [
+          "扣费后已实现利润不是正数",
+          "标签含 arbitrager"
+        ]
+      },
+      "follow_enabled": false,
+      "current_follow": false,
+      "confirmation": "not_offered",
+      "current_label": ""
+    },
+    {
+      "wallet_address": "3HjedYMFbXhdMHxR6qkJfHuvZFmd2JaU1UaqMkdxqbPP",
+      "label": "",
+      "total_score": 63.85,
+      "grade": "C",
+      "hard_rejected": false,
+      "score_source": "watchlist_wallets.json",
+      "winrate": 61.36,
+      "realized_profit": -23.444818588482992,
+      "trades_7d": 281,
+      "tags": [
+        "arbitrager",
+        "axiom"
+      ],
+      "filter_reasons": [
+        "high frequency 281 trades/7d (-10)",
+        "new wallet 0d (-10)",
+        "low stop-loss discipline 0.0% (-5)"
+      ],
+      "status": "rejected",
+      "copy_fit": {
+        "decision": "rejected",
+        "reasons": [
+          "realized profit is not positive after fees",
+          "tagged arbitrager",
+          "11/17 round trips close within 90s",
+          "median hold 56s < 900s"
+        ],
+        "closed_round_trips": 17,
+        "fast_close_count": 11,
+        "fast_close_ratio": 0.6471,
+        "median_hold_seconds": 56,
+        "blocked_tags": [
+          "arbitrager"
+        ],
+        "reasons_zh": [
+          "扣费后已实现利润不是正数",
+          "标签含 arbitrager",
+          "11/17 笔在 90 秒内平仓",
+          "中位持仓 56 秒，短于 15 分钟"
+        ]
+      },
+      "follow_enabled": false,
+      "current_follow": false,
+      "confirmation": "not_offered",
+      "current_label": ""
+    },
+    {
+      "wallet_address": "HViX5DLo5TRWzKamM7BGHgNXHZofUPuvRDemYQZtwuaz",
+      "label": "",
+      "total_score": 62.7,
+      "grade": "C",
+      "hard_rejected": false,
+      "score_source": "watchlist_wallets.json",
+      "winrate": 58.82,
+      "realized_profit": -830.5215523462771,
+      "trades_7d": 131,
+      "tags": [
+        "gmgn"
+      ],
+      "filter_reasons": [
+        "high frequency 131 trades/7d (-10)",
+        "new wallet 0d (-10)",
+        "low stop-loss discipline 0.0% (-5)"
+      ],
+      "status": "rejected",
+      "copy_fit": {
+        "decision": "rejected",
+        "reasons": [
+          "realized profit is not positive after fees"
+        ],
+        "closed_round_trips": 31,
+        "fast_close_count": 0,
+        "fast_close_ratio": 0.0,
+        "median_hold_seconds": 5321,
+        "blocked_tags": [],
+        "reasons_zh": [
+          "扣费后已实现利润不是正数"
+        ]
+      },
+      "follow_enabled": false,
+      "current_follow": false,
+      "confirmation": "not_offered",
+      "current_label": ""
+    },
+    {
+      "wallet_address": "AwAFqTXuAfkUPZCBYMSAundQ9jQtpPSbJxE9FvnJrKDF",
+      "label": "",
+      "total_score": 62.16,
+      "grade": "C",
+      "hard_rejected": false,
+      "score_source": "blacklist_wallets.json",
+      "winrate": 50.0,
+      "realized_profit": -2241.7815781155996,
+      "trades_7d": 66,
+      "tags": [
+        "arbitrager"
+      ],
+      "filter_reasons": [
+        "new wallet 0d (-10)",
+        "low stop-loss discipline 0.0% (-5)"
+      ],
+      "status": "rejected",
+      "copy_fit": {
+        "decision": "rejected",
+        "reasons": [
+          "realized profit is not positive after fees",
+          "tagged arbitrager"
+        ],
+        "closed_round_trips": 28,
+        "fast_close_count": 0,
+        "fast_close_ratio": 0.0,
+        "median_hold_seconds": 235619,
+        "blocked_tags": [
+          "arbitrager"
+        ],
+        "reasons_zh": [
+          "扣费后已实现利润不是正数",
+          "标签含 arbitrager"
+        ]
+      },
+      "follow_enabled": false,
+      "current_follow": false,
+      "confirmation": "not_offered",
+      "current_label": ""
+    },
+    {
+      "wallet_address": "GhEWZApxZKhATzQBW4MQgU541pwwmvKfu26ow6jp7uv8",
+      "label": "",
+      "total_score": 62.01,
+      "grade": "C",
+      "hard_rejected": false,
+      "score_source": "watchlist_wallets.json",
+      "winrate": 66.67,
+      "realized_profit": 0.0,
+      "trades_7d": 159,
+      "tags": [
+        "gmgn",
+        "axiom"
+      ],
+      "filter_reasons": [
+        "high frequency 159 trades/7d (-10)",
+        "short holding time 3.09h (-8)",
+        "new wallet 0d (-10)",
+        "low stop-loss discipline 0.0% (-5)"
+      ],
+      "status": "rejected",
+      "copy_fit": {
+        "decision": "rejected",
+        "reasons": [
+          "realized profit is not positive after fees",
+          "median hold 886s < 900s"
+        ],
+        "closed_round_trips": 23,
+        "fast_close_count": 2,
+        "fast_close_ratio": 0.087,
+        "median_hold_seconds": 886,
+        "blocked_tags": [],
+        "reasons_zh": [
+          "扣费后已实现利润不是正数",
+          "中位持仓 886 秒，短于 15 分钟"
+        ]
+      },
+      "follow_enabled": false,
+      "current_follow": false,
+      "confirmation": "not_offered",
+      "current_label": ""
+    },
+    {
+      "wallet_address": "6VdSJvQvSa6CTqc4zVu19eTTjzcuvVGCBC1w3HaUrFE8",
+      "label": "",
+      "total_score": 60.86,
+      "grade": "C",
+      "hard_rejected": true,
+      "score_source": "blacklist_wallets.json",
+      "winrate": 75.0,
+      "realized_profit": 0.0,
+      "trades_7d": null,
+      "tags": [
+        "arbitrager"
+      ],
+      "filter_reasons": [
+        "7-day trades 1409 exceeds 500 (bot pattern)"
+      ],
+      "status": "rejected",
+      "copy_fit": {
+        "decision": "rejected",
+        "reasons": [
+          "realized profit is not positive after fees",
+          "tagged arbitrager",
+          "median hold 346s < 900s",
+          "wallet was hard-rejected by the score filter"
+        ],
+        "closed_round_trips": 14,
+        "fast_close_count": 2,
+        "fast_close_ratio": 0.1429,
+        "median_hold_seconds": 346,
+        "blocked_tags": [
+          "arbitrager"
+        ],
+        "reasons_zh": [
+          "扣费后已实现利润不是正数",
+          "标签含 arbitrager",
+          "中位持仓 346 秒，短于 15 分钟",
+          "评分阶段已被硬淘汰"
+        ]
+      },
+      "follow_enabled": false,
+      "current_follow": false,
+      "confirmation": "not_offered",
+      "current_label": ""
+    }
+  ],
+  "unavailable": [],
+  "confirmed": []
+}
