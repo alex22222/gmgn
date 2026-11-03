@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 from datetime import datetime, timezone
 import json
 import math
@@ -10,6 +11,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Callable
@@ -21,6 +23,7 @@ from .config_manager import ConfigManager
 from .file_io import atomic_write_text, durable_append_text
 from .copy_risk import load_copy_risk
 from .leader_pool import backtest_leaders, discover_leaders, promote_leaders, score_leaders
+from .rate_limit_guard import blocked_notice, cooldown_path, is_rate_limited, read_reset_at, remember_rate_limit
 from .status import build_status
 
 # Tiny real safety limits enforced by the dashboard (SOL)
@@ -31,6 +34,9 @@ _WHITELIST_SCORE_INTERVAL_SECONDS = 3 * 60 * 60
 _LOW_WALLET_SCORE_THRESHOLD = 60.0
 _AUTO_STOP_LOSS_INTERVAL_SECONDS = 30
 _AUTO_STOP_LOSS_RETRY_SECONDS = 60
+_PORTFOLIO_CACHE_TTL_SECONDS = 60.0
+_portfolio_cache_lock = threading.Lock()
+_portfolio_cache: dict[str, tuple[float, dict[str, object]]] = {}
 _CHAIN_OUTPUT_TOKENS = {
     'sol': 'So11111111111111111111111111111111111111112',
     'bsc': '0x0000000000000000000000000000000000000000',
@@ -1329,10 +1335,24 @@ def _read_live_portfolio_snapshot(root: Path) -> tuple[dict[str, object] | None,
         )
     if not shutil.which('gmgn-cli'):
         return None, 'gmgn-cli missing', '未接入真实钱包数据：gmgn-cli 未安装，无法读取真实 holdings。'
-    try:
-        return _fetch_gmgn_cli_portfolio(root, wallet_address), 'gmgn-cli portfolio holdings', ''
-    except (OSError, subprocess.SubprocessError, ValueError) as exc:
-        return None, 'gmgn-cli portfolio holdings failed', f'真实钱包读取失败：{exc}'
+    root = root.resolve()
+    cache_key = f'{root}:{wallet_address}'
+    with _portfolio_cache_lock:
+        cached = _portfolio_cache.get(cache_key)
+        if cached is not None and time.monotonic() - cached[0] < _PORTFOLIO_CACHE_TTL_SECONDS:
+            return copy.deepcopy(cached[1]), 'gmgn-cli portfolio holdings', ''
+        reset_at = read_reset_at(cooldown_path(root))
+        if reset_at is not None:
+            return None, 'gmgn-cli rate limited', blocked_notice(reset_at)
+        try:
+            snapshot = _fetch_gmgn_cli_portfolio(root, wallet_address)
+        except (OSError, subprocess.SubprocessError, ValueError) as exc:
+            text = str(exc)
+            if text.startswith('GMGN 持仓接口限流'):
+                return None, 'gmgn-cli rate limited', text
+            return None, 'gmgn-cli portfolio holdings failed', f'真实钱包读取失败：{text}'
+        _portfolio_cache[cache_key] = (time.monotonic(), copy.deepcopy(snapshot))
+        return snapshot, 'gmgn-cli portfolio holdings', ''
 
 
 def _configured_wallet_address(root: Path) -> str:
@@ -1376,7 +1396,17 @@ def _fetch_gmgn_cli_portfolio(root: Path, wallet_address: str) -> dict[str, obje
     }
 
 
+def _rate_limit_failure(root: Path, message: str) -> str | None:
+    if not is_rate_limited(message):
+        return None
+    reset_at = remember_rate_limit(cooldown_path(root), message)
+    return blocked_notice(reset_at)
+
+
 def _fetch_gmgn_cli_native_balance(root: Path, wallet_address: str) -> float | None:
+    reset_at = read_reset_at(cooldown_path(root))
+    if reset_at is not None:
+        return None
     command = ['gmgn-cli', 'portfolio', 'info', '--raw']
     result = subprocess.run(
         command,
@@ -1387,6 +1417,8 @@ def _fetch_gmgn_cli_native_balance(root: Path, wallet_address: str) -> float | N
         check=False,
     )
     if result.returncode != 0:
+        message = (result.stderr or result.stdout or '').strip()
+        _rate_limit_failure(root, message)
         return None
     try:
         payload = _parse_json_output(result.stdout)
@@ -1633,7 +1665,9 @@ def _infer_copy_sources_from_whitelist(
             continue
         try:
             holdings = _fetch_gmgn_cli_holdings(root, wallet_address, limit=100, timeout=12)
-        except (OSError, subprocess.SubprocessError, ValueError):
+        except (OSError, subprocess.SubprocessError, ValueError) as exc:
+            if str(exc).startswith('GMGN 持仓接口限流'):
+                break
             continue
         for item in holdings:
             token = _holding_token_address(item).lower()
@@ -1643,6 +1677,9 @@ def _infer_copy_sources_from_whitelist(
 
 
 def _fetch_gmgn_cli_holdings(root: Path, wallet_address: str, limit: int, timeout: int) -> list[dict[str, object]]:
+    reset_at = read_reset_at(cooldown_path(root))
+    if reset_at is not None:
+        raise ValueError(blocked_notice(reset_at))
     command = [
         'gmgn-cli',
         'portfolio',
@@ -1669,7 +1706,8 @@ def _fetch_gmgn_cli_holdings(root: Path, wallet_address: str, limit: int, timeou
     )
     if result.returncode != 0:
         message = (result.stderr or result.stdout or f'gmgn-cli exited {result.returncode}').strip()
-        raise ValueError(message)
+        notice = _rate_limit_failure(root, message)
+        raise ValueError(notice or message)
     return _extract_holdings(_parse_json_output(result.stdout))
 
 
@@ -4605,24 +4643,11 @@ INDEX_HTML = r'''<!doctype html>
       if (!portfolioSummaryTimer) {
         portfolioSummaryTimer = window.setInterval(() => {
           if (currentPage() === 'home') {
-            loadPortfolio({ renderPositions: false }).catch(error => {
-              document.getElementById('portfolioNotice').textContent = `刷新失败：${String(error)}`;
-            });
-          }
-        }, 10000);
-      }
-      if (!portfolioPositionsTimer) {
-        const refreshPositions = () => {
-          if (currentPage() === 'home') {
             loadPortfolio({ renderPositions: true }).catch(error => {
               document.getElementById('portfolioNotice').textContent = `刷新失败：${String(error)}`;
             });
           }
-        };
-        portfolioPositionsTimer = window.setTimeout(() => {
-          refreshPositions();
-          portfolioPositionsTimer = window.setInterval(refreshPositions, 30000);
-        }, 5000);
+        }, 60000);
       }
     }
 

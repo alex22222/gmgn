@@ -457,7 +457,12 @@ def _fetch_paper_signals(components: dict[str, Any]) -> list[TradeSignal]:
     mode = components.get("trade_mode") or "paper"
     print(f"[{mode}] Reading gmgn-cli activity for {len(follow_wallets)} leaders...")
     profile = components.get("copy_risk") or load_copy_risk()
-    observed, notes = collect_leader_signals(follow_wallets, config, profile=profile)
+    observed, notes = collect_leader_signals(
+        follow_wallets,
+        config,
+        profile=profile,
+        rate_limit_state=_PROJECT_ROOT / "data" / "gmgn_rate_limit.json",
+    )
     executable, held_back = split_executable_signals(observed, profile)
     components["paper_observations"] = [item.to_dict() for item in observed]
     components["paper_executable"] = [item.to_dict() for item in executable]
