@@ -783,7 +783,7 @@ def _get_portfolio_data(root: Path) -> dict:
             notice = '本地真实持仓快照'
         elif not notice:
             notice = (
-                '未接入真实钱包数据：请设置 GMGN_WALLET_ADDRESS，并确保 gmgn-cli 已配置可读取 holdings。'
+                '未接入真实钱包数据：请设置 GMGN_WALLET_ADDRESS 或 config/wallet.json，并确保 gmgn-cli 已配置可读取 holdings。'
                 'Portfolio 不再读取 dry-run 模拟快照。'
             )
     if not snapshot:
@@ -1325,7 +1325,7 @@ def _read_live_portfolio_snapshot(root: Path) -> tuple[dict[str, object] | None,
     wallet_address = _configured_wallet_address(root)
     if not wallet_address:
         return None, 'not_configured', (
-            '未接入真实钱包数据：缺少 GMGN_WALLET_ADDRESS。Portfolio 不再读取 dry-run 模拟快照。'
+            '未接入真实钱包数据：缺少 GMGN_WALLET_ADDRESS 或 config/wallet.json。Portfolio 不再读取 dry-run 模拟快照。'
         )
     if not shutil.which('gmgn-cli'):
         return None, 'gmgn-cli missing', '未接入真实钱包数据：gmgn-cli 未安装，无法读取真实 holdings。'
