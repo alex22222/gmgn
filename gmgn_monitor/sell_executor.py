@@ -11,7 +11,9 @@ from time import perf_counter
 from typing import Any, Literal
 from uuid import uuid4
 
+from .copy_risk import CopyRiskProfile, load_copy_risk
 from .gmgn_api_client import GmgnApiClient, GmgnApiError
+from .live_guard import live_sell_block_reason, load_automation_gate
 from .order_manager import OrderManager
 from .portfolio_tracker import PortfolioTracker
 from .risk_manager import RiskManager
@@ -149,6 +151,8 @@ class SellExecutor:
         order_manager: OrderManager,
         portfolio_tracker: PortfolioTracker,
         auto_confirm: bool = True,
+        copy_risk: CopyRiskProfile | None = None,
+        gate_config: dict[str, Any] | None = None,
     ) -> None:
         self._wallet_address = wallet_address
         self._chain = chain
@@ -156,6 +160,8 @@ class SellExecutor:
         self._order_manager = order_manager
         self._portfolio_tracker = portfolio_tracker
         self._auto_confirm = auto_confirm
+        self._copy_risk = copy_risk or load_copy_risk()
+        self._gate_override = gate_config
         self._client = GmgnApiClient(api_key=api_key, private_key_pem=private_key_pem)
 
     # ------------------------------------------------------------------
@@ -178,6 +184,12 @@ class SellExecutor:
         """
         received_at = datetime.now(timezone.utc)
         execution_id = str(uuid4())
+
+        blocked = self._live_sell_block_reason(sell_signal)
+        if blocked:
+            return self._build_failure_result(
+                execution_id, sell_signal, received_at, blocked
+            )
 
         # -- a) Confirmation ------------------------------------------------
         token_balance = self.get_token_balance(sell_signal.token_address)
@@ -472,6 +484,22 @@ class SellExecutor:
                 if isinstance(value, str) and value:
                     return value
         return None
+
+    def _current_gate(self) -> dict[str, Any]:
+        override = getattr(self, "_gate_override", None)
+        if isinstance(override, dict):
+            return override
+        return load_automation_gate()
+
+    def _live_sell_block_reason(self, sell_signal: SellSignal) -> str | None:
+        profile = getattr(self, "_copy_risk", None)
+        if profile is None:
+            return "live sell guard is not configured"
+        return live_sell_block_reason(
+            slippage_percent=self._sell_slippage_percent(sell_signal),
+            profile=profile,
+            gate_config=self._current_gate(),
+        )
 
     def _confirm_sell(
         self, sell_signal: SellSignal, sell_amount: float, token_balance: float

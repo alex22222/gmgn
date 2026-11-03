@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from gmgn_monitor.copy_risk import CopyRiskProfile
 from gmgn_monitor.sell_executor import SellExecutor, SellSignal
 
 
@@ -53,6 +54,8 @@ def _make_executor(holdings) -> SellExecutor:
     executor._order_manager = _FakeOrderManager()
     executor._portfolio_tracker = _FakePortfolio()
     executor._auto_confirm = True
+    executor._copy_risk = CopyRiskProfile()
+    executor._gate_override = {"force_open": True}
     return executor
 
 

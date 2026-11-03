@@ -39,12 +39,11 @@ from gmgn_monitor.birdeye_client import BirdeyeClient
 from gmgn_monitor.config_manager import ConfigManager
 from gmgn_monitor.copy_sell_handler import CopySellHandler
 from gmgn_monitor.execution_loop import ExecutionLoopEngine, MarketData
-from gmgn_monitor.gmgn_api_client import GmgnApiClient
-from gmgn_monitor.live_signal_fetcher import LiveSignalFetcher
 from gmgn_monitor.order_manager import OrderManager
 from gmgn_monitor.portfolio_tracker import PortfolioTracker
 from gmgn_monitor.position_monitor import PositionMonitor
 from gmgn_monitor.copy_risk import load_copy_risk
+from gmgn_monitor.live_guard import load_automation_gate, tiny_auto_confirm_allowed
 from gmgn_monitor.paper_copy import (
     PaperBuyExecutor,
     PaperSellExecutor,
@@ -363,16 +362,26 @@ def _init_components(
     position_monitor = PositionMonitor(birdeye_client=birdeye)
 
     gmgn_client = None
-    signal_fetcher: Any
+    signal_fetcher: Any = type("LeaderSignalScores", (), {})()
+    signal_fetcher.wallet_scores = wallet_scores
+    gate_config = load_automation_gate()
+    settings = config.get("global_settings") if isinstance(config.get("global_settings"), dict) else {}
+    tiny_auto_confirm = False
     if trade_mode == "real":
-        gmgn_client = GmgnApiClient(api_key=api_key, private_key_pem=private_key_pem)
+        # Re-read the gate inside each order. Passing no override keeps the
+        # kill switch effective without restarting the process.
+        tiny_auto_confirm = tiny_auto_confirm_allowed(
+            requested=bool(settings.get("auto_confirm")),
+            gate_config=gate_config,
+        )
         buy_executor: Any = RealTradeExecutor(
             wallet_address=wallet_address,
             chain=CHAIN,
-            auto_confirm=False,
+            auto_confirm=tiny_auto_confirm,
             api_key=api_key,
             private_key_pem=private_key_pem,
             risk_limits=risk_limits,
+            copy_risk=copy_risk,
         )
         sell_executor: Any = SellExecutor(
             wallet_address=wallet_address,
@@ -382,9 +391,9 @@ def _init_components(
             risk_manager=risk_manager,
             order_manager=order_manager,
             portfolio_tracker=portfolio,
-            auto_confirm=False,
+            auto_confirm=tiny_auto_confirm,
+            copy_risk=copy_risk,
         )
-        signal_fetcher = LiveSignalFetcher(api_client=gmgn_client, wallet_scores=wallet_scores)
     else:
         buy_executor = PaperBuyExecutor(
             portfolio=portfolio,
@@ -392,8 +401,6 @@ def _init_components(
             copy_risk=copy_risk,
         )
         sell_executor = PaperSellExecutor(portfolio=portfolio)
-        signal_fetcher = type("PaperSignalScores", (), {})()
-        signal_fetcher.wallet_scores = wallet_scores
 
     sell_trigger = SellTrigger()
     copy_sell_handler = CopySellHandler(sell_executor)
@@ -428,6 +435,7 @@ def _init_components(
         "gmgn_client": gmgn_client,
         "whitelist_config": config,
         "copy_risk": copy_risk,
+        "tiny_auto_confirm": tiny_auto_confirm,
         "liquidate_removed_leaders": trade_mode == "real",
         "sell_cooldowns": {},
         "copy_sell_seen": {},
@@ -435,97 +443,19 @@ def _init_components(
 
 
 def _fetch_signals(components: dict[str, Any]) -> list[TradeSignal]:
-    """Fetch leader signals. Paper mode reads gmgn-cli and does not swap."""
-    if components.get("trade_mode") != "real":
-        return _fetch_paper_signals(components)
-    fetcher = components["signal_fetcher"]
-    follow_wallets = components["follow_wallets"]
-    wallet_scores = components["wallet_scores"]
+    """Read leader activity and keep only fresh, sized signals.
 
-    print(f"[Signal] Fetching activity for {len(follow_wallets)} follow wallets...")
-
-    all_signals: list[TradeSignal] = []
-    for wallet in follow_wallets:
-        addr = wallet["wallet_address"]
-        try:
-            activity = fetcher.api_client.get_wallet_activity(
-                chain=CHAIN, wallet_address=addr, limit=20
-            )
-        except Exception as exc:
-            print(f"  [WARN] Failed to fetch activity for {addr[:16]}...: {exc}")
-            continue
-
-        entries = activity.get("activities") or activity.get("data") or []
-        if isinstance(entries, dict):
-            entries = entries.get("activities") or entries.get("data") or []
-        if not isinstance(entries, list):
-            continue
-
-        score = wallet_scores.get(addr, 50.0)
-        for entry in entries:
-            if not isinstance(entry, dict):
-                continue
-            action = str(entry.get("event_type", "")).lower()
-            if action not in ("buy", "sell"):
-                continue
-
-            try:
-                token_info = entry.get("token", {})
-                token = str(token_info.get("address", "")) if isinstance(token_info, dict) else str(entry.get("token_address", ""))
-                # quote_amount is the SOL amount spent/received
-                amount = float(entry.get("quote_amount", 0.0))
-                if amount <= 0:
-                    amount = float(entry.get("amount", 0.0))
-                if not token or amount <= 0:
-                    continue
-
-                # Determine signal type
-                if action == "sell":
-                    signal_type = "EXIT"
-                else:
-                    signal_type = "NEW_POSITION"
-
-                # Build risk config from wallet
-                risk_limits = wallet.get("risk_limits", {})
-                tp_steps = risk_limits.get("take_profit_steps", [])
-                from gmgn_monitor.trade_signal import TPOrder, SLOrder
-                tp_orders = tuple(
-                    TPOrder(level=i + 1, trigger_percent=s["price_change_percent"], sell_percent=s["sell_percent"])
-                    for i, s in enumerate(tp_steps)
-                )
-                sl_order = SLOrder(
-                    trigger_percent=risk_limits.get("stop_loss_percent", -40.0),
-                    sell_percent=100.0,
-                )
-
-                signal = TradeSignal(
-                    signal_id=f"auto-{addr[:8]}-{token[:8]}-{int(time.time())}",
-                    wallet_address=addr,
-                    target_token=token,
-                    signal_type=signal_type,
-                    urgency_score=int(min(100.0, score)),
-                    confidence_score=70,
-                    quality_score=int(min(100.0, score)),
-                    recommended_amount_sol=min(amount, risk_limits.get("max_single_trade_sol", 0.005)),
-                    max_slippage_percent=risk_limits.get("slippage_percent", 2.0),
-                    priority_fee_sol=0.01,
-                    mev_protection="SECURE",
-                    tp_orders=tp_orders,
-                    sl_order=sl_order,
-                    chain=CHAIN,
-                )
-                all_signals.append(signal)
-            except (ValueError, TypeError, KeyError):
-                continue
-
-    print(f"[Signal] Found {len(all_signals)} signals")
-    return all_signals
+    Real mode uses the same selector as paper mode. Trades older than the
+    copy age gate are observed and held back; they are not submitted.
+    """
+    return _fetch_paper_signals(components)
 
 
 def _fetch_paper_signals(components: dict[str, Any]) -> list[TradeSignal]:
     follow_wallets = components["follow_wallets"]
     config = components.get("whitelist_config") or {}
-    print(f"[Paper] Reading gmgn-cli activity for {len(follow_wallets)} leaders...")
+    mode = components.get("trade_mode") or "paper"
+    print(f"[{mode}] Reading gmgn-cli activity for {len(follow_wallets)} leaders...")
     profile = components.get("copy_risk") or load_copy_risk()
     observed, notes = collect_leader_signals(follow_wallets, config, profile=profile)
     executable, held_back = split_executable_signals(observed, profile)
@@ -550,7 +480,7 @@ def _fetch_paper_signals(components: dict[str, Any]) -> list[TradeSignal]:
             f"age={item.age_hours:.1f}h paper={item.signal.recommended_amount_sol:.4f} SOL"
         )
     print(
-        f"[Paper] Observed {len(observed)} leader signals, "
+        f"[{mode}] Observed {len(observed)} leader signals, "
         f"executable {len(executable)}, held back {len(held_back)} "
         f"(max age {profile.max_signal_age_minutes}m, "
         f"leader score >= {profile.min_leader_score:g}, "
@@ -810,6 +740,11 @@ def _log_cycle(result: dict[str, Any]) -> None:
             json.dumps(entry, ensure_ascii=False, indent=2) + "\n",
             DATA_DIR / "paper_copy_last_run.json",
         )
+    elif entry.get("trade_mode") == "real":
+        atomic_write_text(
+            json.dumps(entry, ensure_ascii=False, indent=2) + "\n",
+            DATA_DIR / "real_copy_last_run.json",
+        )
 
 
 def _main_loop(components: dict[str, Any], interval: int, monitor_only: bool) -> None:
@@ -825,6 +760,11 @@ def _main_loop(components: dict[str, Any], interval: int, monitor_only: bool) ->
     print(f"Follow wallets: {len(components['follow_wallets'])}")
     if trade_mode == "paper":
         print("Execution: paper fills only; gmgn-cli reads leader activity and no swap is submitted")
+    elif trade_mode == "real":
+        print(
+            "Execution: live swaps for fresh signals only; "
+            f"tiny auto-confirm={'on' if components.get('tiny_auto_confirm') else 'off'}"
+        )
     profile = components.get("copy_risk")
     if profile is not None:
         print(
@@ -917,28 +857,42 @@ def main() -> int:
     if not copy_trading_enabled(config):
         print("[ERROR] copy_trading_enabled is false in wallet whitelist global_settings.")
         return 1
+    configured = str(config.get("trade_mode") or "paper").strip().lower()
     try:
         trade_mode = resolve_trade_mode(config, paper=args.paper, real=args.real)
     except ValueError as exc:
         print(f"[ERROR] {exc}")
         return 1
+    if configured == "real" and trade_mode != "real":
+        print("[WARN] trade_mode=real is armed, but this process stays on paper fills until --real is passed.")
 
     cfg = ConfigManager()
     api_key = cfg.gmgn_api_key or ""
     private_key = cfg.gmgn_private_key or ""
+    wallet_address = args.wallet or cfg.gmgn_wallet_address
 
     if not api_key:
         print("[ERROR] GMGN_API_KEY not configured. Set env var or config.")
         return 1
-    if trade_mode == "real" and not private_key:
-        print("[ERROR] GMGN private key not found. Ensure ~/.config/gmgn/keypair.pem exists.")
-        return 1
+    if trade_mode == "real":
+        pem_path = Path.home() / ".config" / "gmgn" / "keypair.pem"
+        if pem_path.exists():
+            pem_mode = pem_path.stat().st_mode & 0o777
+            if pem_mode != 0o600:
+                print(f"[ERROR] {pem_path} must be mode 600 before real trading.")
+                return 1
+        if not private_key:
+            print("[ERROR] GMGN private key not found. Ensure ~/.config/gmgn/keypair.pem exists with mode 600.")
+            return 1
+        if not wallet_address:
+            print("[ERROR] GMGN_WALLET_ADDRESS is required for real trading.")
+            return 1
 
     components = _init_components(
         config,
         api_key,
         private_key,
-        wallet_address=args.wallet,
+        wallet_address=wallet_address,
         trade_mode=trade_mode,
     )
     components["whitelist_path"] = whitelist_path
