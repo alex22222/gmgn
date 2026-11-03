@@ -220,11 +220,36 @@ def _add_skip(summary: dict[str, int], reason: str) -> None:
     summary[reason] = summary.get(reason, 0) + 1
 
 
+def _configured_payment_wallet(root: Path, explicit: str | None = None) -> str:
+    """Resolve the payment wallet. CLI and env override config/wallet.json."""
+    if explicit and str(explicit).strip():
+        return str(explicit).strip()
+    for key in ("GMGN_WALLET_ADDRESS", "WALLET_ADDRESS"):
+        value = os.environ.get(key, "").strip()
+        if value:
+            return value
+    path = root / "config" / "wallet.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        payload = {}
+    if isinstance(payload, dict):
+        for key in ("gmgn_wallet_address", "wallet_address"):
+            value = str(payload.get(key) or "").strip()
+            if value:
+                return value
+    try:
+        value = ConfigManager().gmgn_wallet_address
+    except (OSError, json.JSONDecodeError):
+        value = None
+    return str(value or "").strip()
+
+
 def _get_wallet_address() -> str:
-    """Return the wallet address from environment variable."""
-    addr = os.environ.get("GMGN_WALLET_ADDRESS", "")
+    """Return the pinned payment wallet from env or config/wallet.json."""
+    addr = _configured_payment_wallet(_PROJECT_ROOT)
     if not addr:
-        raise ValueError("GMGN_WALLET_ADDRESS environment variable is required")
+        raise ValueError("GMGN_WALLET_ADDRESS or config/wallet.json wallet address is required")
     return addr
 
 CHAIN = "sol"
@@ -844,7 +869,7 @@ def main() -> int:
         "--wallet",
         type=str,
         default=None,
-        help="Your Solana wallet address (defaults to GMGN_WALLET_ADDRESS env var)",
+        help="Payment wallet address (defaults to GMGN_WALLET_ADDRESS, then config/wallet.json)",
     )
     args = parser.parse_args()
 
@@ -869,7 +894,7 @@ def main() -> int:
     cfg = ConfigManager()
     api_key = cfg.gmgn_api_key or ""
     private_key = cfg.gmgn_private_key or ""
-    wallet_address = args.wallet or cfg.gmgn_wallet_address
+    wallet_address = _configured_payment_wallet(_PROJECT_ROOT, args.wallet)
 
     if not api_key:
         print("[ERROR] GMGN_API_KEY not configured. Set env var or config.")
@@ -885,7 +910,7 @@ def main() -> int:
             print("[ERROR] GMGN private key not found. Ensure ~/.config/gmgn/keypair.pem exists with mode 600.")
             return 1
         if not wallet_address:
-            print("[ERROR] GMGN_WALLET_ADDRESS is required for real trading.")
+            print("[ERROR] Set GMGN_WALLET_ADDRESS or config/wallet.json before real trading.")
             return 1
 
     components = _init_components(

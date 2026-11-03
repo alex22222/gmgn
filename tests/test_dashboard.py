@@ -17,6 +17,7 @@ from gmgn_monitor.dashboard import (
     ACTION_LOCK,
     DashboardHandler,
     INDEX_HTML,
+    _configured_wallet_address,
     _execute_sell,
     _get_portfolio_data,
     _read_leader_pool_state,
@@ -126,7 +127,10 @@ class DashboardTest(unittest.TestCase):
             (root / 'fixtures/candidates.jsonl').write_text('{"symbol":"A"}\n{"symbol":"B"}\n', encoding='utf-8')
             (root / 'data/pipeline/daily_summary.md').write_text('# Summary\n', encoding='utf-8')
 
-            payload = build_dashboard_payload(root)
+            with patch.dict(os.environ):
+                os.environ.pop('GMGN_WALLET_ADDRESS', None)
+                os.environ.pop('WALLET_ADDRESS', None)
+                payload = build_dashboard_payload(root)
 
         self.assertIn('status', payload)
         self.assertIn('actions', payload)
@@ -206,6 +210,22 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(portfolio['source'], 'not_configured')
         self.assertEqual(portfolio['summary']['total_value_sol'], 0.0)
         self.assertIn('不再读取 dry-run 模拟快照', portfolio['notice'])
+        self.assertIn('config/wallet.json', portfolio['notice'])
+
+    def test_configured_wallet_address_reads_wallet_json(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / 'config').mkdir()
+            (root / 'config/wallet.json').write_text(json.dumps({
+                'gmgn_wallet_address': 'BM76JAzFzCEUbPCgBzpTTTiAXkxYFttNVLQDjH4iEqc6',
+            }), encoding='utf-8')
+            with patch.dict(os.environ, {}, clear=True):
+                address = _configured_wallet_address(root)
+            with patch.dict(os.environ, {'GMGN_WALLET_ADDRESS': 'EnvWallet111'}, clear=True):
+                overridden = _configured_wallet_address(root)
+
+        self.assertEqual(address, 'BM76JAzFzCEUbPCgBzpTTTiAXkxYFttNVLQDjH4iEqc6')
+        self.assertEqual(overridden, 'EnvWallet111')
 
     def test_dashboard_portfolio_infers_copy_source_from_whitelist_holdings(self):
         leader_holdings = {

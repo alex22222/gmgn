@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
+import tempfile
+import unittest
 from pathlib import Path
 from unittest.mock import patch
 
@@ -225,3 +229,24 @@ def test_filter_current_follow_signals_drops_removed_leader():
         components,
         [current_signal, stale_signal],
     ) == [current_signal]
+
+
+class PaymentWalletTests(unittest.TestCase):
+    def test_reads_wallet_json_when_env_is_unset(self) -> None:
+        module = _load_script_module()
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "config").mkdir()
+            (root / "config" / "wallet.json").write_text(
+                json.dumps({"gmgn_wallet_address": "BM76JAzFzCEUbPCgBzpTTTiAXkxYFttNVLQDjH4iEqc6"}),
+                encoding="utf-8",
+            )
+            with patch.dict(os.environ, {}, clear=True):
+                address = module._configured_payment_wallet(root)
+                overridden = module._configured_payment_wallet(root, explicit="CliWallet111")
+            with patch.dict(os.environ, {"GMGN_WALLET_ADDRESS": "EnvWallet111"}, clear=True):
+                from_env = module._configured_payment_wallet(root)
+
+        self.assertEqual(address, "BM76JAzFzCEUbPCgBzpTTTiAXkxYFttNVLQDjH4iEqc6")
+        self.assertEqual(overridden, "CliWallet111")
+        self.assertEqual(from_env, "EnvWallet111")
