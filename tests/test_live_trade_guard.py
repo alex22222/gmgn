@@ -194,9 +194,10 @@ class RealCopyRunnerTests(unittest.TestCase):
             "signal_fetcher": object(),
         }
 
-        def collect(wallets, config, profile=None):
+        def collect(wallets, config, profile=None, rate_limit_state=None):
             self.assertEqual(wallets[0]["wallet_address"], "Leader111")
             self.assertIs(profile, components["copy_risk"])
+            self.assertEqual(rate_limit_state.name, "gmgn_rate_limit.json")
             return [], []
 
         def split(observed, profile):

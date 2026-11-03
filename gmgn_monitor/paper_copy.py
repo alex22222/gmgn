@@ -17,6 +17,7 @@ from typing import Any
 from uuid import uuid4
 
 from .copy_risk import CopyRiskProfile, load_copy_risk
+from .rate_limit_guard import blocked_notice, read_reset_at, remember_rate_limit
 from .portfolio_tracker import PortfolioTracker
 from .real_trade_executor import ExecutionResult
 from .risk_manager import RiskCheckResult, RiskLimits, RiskManager
@@ -363,8 +364,13 @@ def fetch_wallet_activity(
     limit: int = DEFAULT_ACTIVITY_LIMIT,
     cli_path: str | None = None,
     timeout_seconds: float = 45.0,
+    state_path: Path | None = None,
 ) -> list[dict[str, Any]]:
     """Read one leader's recent fills through ``gmgn-cli``."""
+    if state_path is not None:
+        reset_at = read_reset_at(state_path)
+        if reset_at is not None:
+            raise GmgnRateLimitError(blocked_notice(reset_at), reset_at)
     command = [
         cli_path or find_gmgn_cli(),
         "portfolio",
@@ -387,7 +393,11 @@ def fetch_wallet_activity(
     if completed.returncode != 0:
         message = (completed.stderr or completed.stdout or "gmgn-cli failed").strip()
         if "429" in message or "RATE_LIMIT" in message:
-            raise GmgnRateLimitError(message, parse_reset_at(message))
+            reset_at = parse_reset_at(message)
+            if state_path is not None:
+                reset_at = remember_rate_limit(state_path, message)
+                message = blocked_notice(reset_at)
+            raise GmgnRateLimitError(message, reset_at)
         raise GmgnCliError(message)
     try:
         payload = json.loads(completed.stdout)
@@ -404,10 +414,15 @@ def collect_leader_signals(
     sleeper: Any = time.sleep,
     activity_loader: Any = None,
     profile: CopyRiskProfile | None = None,
+    rate_limit_state: Path | None = None,
 ) -> tuple[list[ObservedLeaderSignal], list[dict[str, Any]]]:
     """Fetch each enabled leader once, waiting out a single rate-limit window."""
     del config
-    loader = activity_loader or fetch_wallet_activity
+    if activity_loader is None:
+        def loader(address: str) -> list[dict[str, Any]]:
+            return fetch_wallet_activity(address, state_path=rate_limit_state)
+    else:
+        loader = activity_loader
     active = profile or load_copy_risk()
     lookback = paper_lookback(profile=active)
     moment = now or _utc_now()

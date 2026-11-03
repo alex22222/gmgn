@@ -351,6 +351,57 @@ class DashboardTest(unittest.TestCase):
         self.assertAlmostEqual(portfolio['positions'][0]['unrealized_pnl_percent'], 150.0)
         self.assertIn('--wallet', run.call_args_list[0].args[0])
 
+    def test_portfolio_live_read_is_cached_for_one_minute(self):
+        holdings_payload = {'holdings': []}
+        info_payload = {
+            'wallets': [{
+                'chain': 'sol',
+                'address': 'Wallet111111111111111111111111111111111111',
+                'balances': [{'symbol': 'SOL', 'balance': '1.5'}],
+            }],
+        }
+        holdings_completed = subprocess.CompletedProcess(
+            args=['gmgn-cli'], returncode=0, stdout=json.dumps(holdings_payload), stderr='',
+        )
+        info_completed = subprocess.CompletedProcess(
+            args=['gmgn-cli'], returncode=0, stdout=json.dumps(info_payload), stderr='',
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / 'config').mkdir()
+            with patch.dict(os.environ, {'GMGN_WALLET_ADDRESS': 'Wallet111111111111111111111111111111111111'}, clear=True), \
+                    patch('gmgn_monitor.dashboard.shutil.which', return_value='/usr/local/bin/gmgn-cli'), \
+                    patch('gmgn_monitor.dashboard.subprocess.run', side_effect=[holdings_completed, info_completed, holdings_completed, info_completed]) as run:
+                first = _get_portfolio_data(root)
+                second = _get_portfolio_data(root)
+
+        self.assertEqual(first['summary']['available_sol'], 1.5)
+        self.assertEqual(second['summary']['available_sol'], 1.5)
+        self.assertEqual(run.call_count, 2)
+
+    def test_portfolio_rate_limit_stops_further_gmgn_reads(self):
+        message = (
+            '[gmgn-cli] GET /v1/user/wallet_holdings failed: HTTP 429 '
+            'code=429 error=RATE_LIMIT_BANNED '
+            'Rate limit resets at 2099-01-01 00:00:00 GMT+00:00 (~299s remaining).'
+        )
+        failed = subprocess.CompletedProcess(args=['gmgn-cli'], returncode=1, stdout='', stderr=message)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / 'config').mkdir()
+            with patch.dict(os.environ, {'GMGN_WALLET_ADDRESS': 'Wallet111111111111111111111111111111111111'}, clear=True), \
+                    patch('gmgn_monitor.dashboard.shutil.which', return_value='/usr/local/bin/gmgn-cli'), \
+                    patch('gmgn_monitor.dashboard.subprocess.run', return_value=failed) as run:
+                first = _get_portfolio_data(root)
+                second = _get_portfolio_data(root)
+
+        self.assertFalse(first['ok'])
+        self.assertIn('08:00（北京时间）', first['notice'])
+        self.assertIn('不会重复请求', first['notice'])
+        self.assertNotIn('RATE_LIMIT_BANNED', first['notice'])
+        self.assertEqual(second['notice'], first['notice'])
+        self.assertEqual(run.call_count, 1)
+
     def test_leader_toggle_updates_wallet_whitelist(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -1940,10 +1991,9 @@ class DashboardTest(unittest.TestCase):
         self.assertIn('data-page="reports"', INDEX_HTML)
         self.assertIn('applyPageMode', INDEX_HTML)
         self.assertIn('startPortfolioAutoRefresh', INDEX_HTML)
-        self.assertIn('loadPortfolio({ renderPositions: false })', INDEX_HTML)
         self.assertIn('loadPortfolio({ renderPositions: true })', INDEX_HTML)
-        self.assertIn('}, 10000);', INDEX_HTML)
-        self.assertIn('window.setInterval(refreshPositions, 30000)', INDEX_HTML)
+        self.assertIn('}, 60000);', INDEX_HTML)
+        self.assertNotIn('window.setInterval(refreshPositions, 30000)', INDEX_HTML)
 
     def test_dashboard_dexscreener_health_reports_invalid_payload_pairs(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

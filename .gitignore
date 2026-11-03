@@ -10,6 +10,7 @@ data/auto_stop_loss_state.json
 data/dashboard.log
 data/trading_log.jsonl
 data/triggered_tp.json
+data/gmgn_rate_limit.json
 logs/
 .coverage
 
