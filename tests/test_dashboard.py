@@ -27,6 +27,7 @@ from gmgn_monitor.dashboard import (
     _run_whitelist_score_refresh_once,
     _start_whitelist_score_monitor,
     _liquidate_leader_positions,
+    _confirm_copy_review_leader,
     _promote_single_leader_to_copy_whitelist,
     _recycle_scored_leader_to_candidates,
     _set_automation_gate_enabled,
@@ -176,7 +177,10 @@ class DashboardTest(unittest.TestCase):
                 }],
             }), encoding='utf-8')
 
-            portfolio = _get_portfolio_data(root)
+            with patch.dict(os.environ):
+                os.environ.pop('GMGN_WALLET_ADDRESS', None)
+                os.environ.pop('WALLET_ADDRESS', None)
+                portfolio = _get_portfolio_data(root)
 
         self.assertTrue(portfolio['ok'])
         self.assertEqual(portfolio['summary']['open_positions'], 1)
@@ -303,7 +307,10 @@ class DashboardTest(unittest.TestCase):
                 },
             }) + '\n', encoding='utf-8')
 
-            portfolio = _get_portfolio_data(root)
+            with patch.dict(os.environ):
+                os.environ.pop('GMGN_WALLET_ADDRESS', None)
+                os.environ.pop('WALLET_ADDRESS', None)
+                portfolio = _get_portfolio_data(root)
 
         self.assertEqual(portfolio['positions'][0]['copy_source_wallet'], 'RemovedLeader111')
         self.assertEqual(portfolio['positions'][0]['copy_source_label'], '')
@@ -774,6 +781,70 @@ class DashboardTest(unittest.TestCase):
         )
         self.assertEqual(state['next_action']['action'], 'discover')
         self.assertIn('gmgn_api_key_configured', state['prerequisites'])
+
+    def test_confirm_copy_review_adds_observe_and_leaves_live_follow_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / 'config').mkdir()
+            (root / 'data').mkdir()
+            (root / 'config/wallet_whitelist.json').write_text(json.dumps({
+                'wallets': [{
+                    'wallet_address': 'AlreadyFollow',
+                    'label': 'qualified_1',
+                    'mode': 'follow',
+                    'enabled': True,
+                    'copy_weight': 1,
+                }],
+            }), encoding='utf-8')
+            (root / 'data/copy_leader_review.json').write_text(json.dumps({
+                'pending': [
+                    {
+                        'wallet_address': 'NewLeader',
+                        'total_score': 70,
+                        'grade': 'B',
+                        'tags': ['smart_degen'],
+                        'realized_profit': 10,
+                        'winrate': 0.7,
+                        'trades_7d': 20,
+                        'status': 'pending_confirmation',
+                    },
+                    {
+                        'wallet_address': 'AlreadyFollow',
+                        'total_score': 75,
+                        'status': 'pending_confirmation',
+                    },
+                ],
+                'rejected': [],
+            }), encoding='utf-8')
+
+            added = _confirm_copy_review_leader(root, {'wallet_address': 'NewLeader'})
+            saved = json.loads((root / 'config/wallet_whitelist.json').read_text(encoding='utf-8'))
+            new_wallet = next(item for item in saved['wallets'] if item['wallet_address'] == 'NewLeader')
+            kept = next(item for item in saved['wallets'] if item['wallet_address'] == 'AlreadyFollow')
+            review = json.loads((root / 'data/copy_leader_review.json').read_text(encoding='utf-8'))
+
+            self.assertTrue(added['ok'])
+            self.assertFalse(added['follow_enabled'])
+            self.assertIn('观察', added['message'])
+            self.assertEqual(new_wallet['mode'], 'observe')
+            self.assertFalse(new_wallet['enabled'])
+            self.assertEqual(kept['mode'], 'follow')
+            self.assertTrue(kept['enabled'])
+            self.assertEqual(kept['label'], 'qualified_1')
+            self.assertEqual([item['wallet_address'] for item in review['pending']], ['AlreadyFollow'])
+            self.assertEqual(review['confirmed'][0]['status'], 'confirmed_observe')
+            self.assertFalse(review['confirmed'][0]['follow_enabled'])
+
+            untouched = _confirm_copy_review_leader(root, {'wallet_address': 'AlreadyFollow'})
+            saved_again = json.loads((root / 'config/wallet_whitelist.json').read_text(encoding='utf-8'))
+            kept_again = next(item for item in saved_again['wallets'] if item['wallet_address'] == 'AlreadyFollow')
+
+        self.assertTrue(untouched['ok'])
+        self.assertTrue(untouched['follow_enabled'])
+        self.assertIn('没有改动跟单开关', untouched['message'])
+        self.assertEqual(len(saved_again['wallets']), 2)
+        self.assertEqual(kept_again['mode'], 'follow')
+        self.assertTrue(kept_again['enabled'])
 
     def test_update_leader_pool_config_saves_targets_and_thresholds(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1870,6 +1941,9 @@ class DashboardTest(unittest.TestCase):
         self.assertIn('/api/leader-pool/actions', INDEX_HTML)
         self.assertIn('/api/leader-pool/promote-one', INDEX_HTML)
         self.assertIn('/api/leader-pool/recycle-scored', INDEX_HTML)
+        self.assertIn('/api/leader-pool/confirm-review', INDEX_HTML)
+        self.assertIn('可跟单复核', INDEX_HTML)
+        self.assertIn('确认观察', INDEX_HTML)
         self.assertIn("runLeaderPoolAction('loop_once'", INDEX_HTML)
         self.assertIn("runLeaderPoolAction('discover'", INDEX_HTML)
         self.assertIn("runLeaderPoolAction('score'", INDEX_HTML)
