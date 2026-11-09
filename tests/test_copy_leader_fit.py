@@ -6,7 +6,7 @@ from pathlib import Path
 import json
 import tempfile
 
-from gmgn_monitor.copy_leader_fit import assess_copy_fit, build_copy_review, load_scored_leaders
+from gmgn_monitor.copy_leader_fit import assess_copy_fit, build_copy_review, load_scored_leaders, split_arbitrage
 
 
 def _fill(kind: str, token: str, timestamp: int, amount: float, sol: float, fee: float = 0.0) -> dict:
@@ -122,3 +122,31 @@ class CopyLeaderFitTests(unittest.TestCase):
 
         self.assertEqual([item["wallet_address"] for item in loaded], ["Keep"])
         self.assertEqual(loaded[0]["total_score"], 70.2)
+
+    def test_arbitrage_wallet_is_excluded_from_confirmation(self) -> None:
+        review = build_copy_review(
+            [
+                {
+                    "wallet_address": "SlowWallet",
+                    "total_score": 71,
+                    "stats": {"realized_profit": 100, "winrate": 0.7},
+                },
+                {
+                    "wallet_address": "ArbWallet",
+                    "total_score": 80,
+                    "stats": {"realized_profit": 5000, "winrate": 0.8},
+                },
+            ],
+            {
+                "SlowWallet": _slow_activities(),
+                "ArbWallet": _slow_activities(),
+            },
+            tags_by_address={"ArbWallet": ["arbitrager"]},
+        )
+
+        self.assertEqual([item["wallet_address"] for item in review["pending"]], ["SlowWallet"])
+        self.assertEqual(review["rejected"], [])
+        self.assertEqual(review["excluded"][0]["status"], "excluded_arbitrage")
+        self.assertEqual(review["excluded"][0]["confirmation"], "not_offered")
+        self.assertFalse(review["excluded"][0]["follow_enabled"])
+        self.assertIn("套利地址，已排除", review["excluded"][0]["copy_fit"]["reasons_zh"])

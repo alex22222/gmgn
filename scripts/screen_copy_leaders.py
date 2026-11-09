@@ -108,7 +108,7 @@ def _mark_current_follow(root: Path, review: dict[str, Any]) -> None:
         address = str(wallet.get("wallet_address") or "").lower()
         if address:
             following[address] = str(wallet.get("label") or "")
-    for key in ("pending", "rejected", "unavailable", "confirmed"):
+    for key in ("pending", "rejected", "excluded", "unavailable", "confirmed"):
         rows = review.get(key)
         if not isinstance(rows, list):
             continue

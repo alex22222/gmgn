@@ -163,7 +163,6 @@ def build_copy_review(
                 reasons.append(note)
             fit = {**fit, "decision": "rejected", "reasons": reasons}
         fit["reasons_zh"] = explain_fit(fit)
-        pending = fit["decision"] == "pending_confirmation"
         filter_reasons = record.get("filter_reasons")
         rows.append(
             {
@@ -178,15 +177,14 @@ def build_copy_review(
                 "trades_7d": stats.get("trades_7d"),
                 "tags": [str(tag) for tag in tags],
                 "filter_reasons": [str(item) for item in filter_reasons] if isinstance(filter_reasons, list) else [],
-                "status": "pending_confirmation" if pending else "rejected",
+                "status": "pending_confirmation" if fit["decision"] == "pending_confirmation" else "rejected",
                 "copy_fit": fit,
                 "follow_enabled": False,
                 "current_follow": False,
-                "confirmation": "needs_human" if pending else "not_offered",
+                "confirmation": "needs_human" if fit["decision"] == "pending_confirmation" else "not_offered",
             }
         )
-    pending = [row for row in rows if row["status"] == "pending_confirmation"]
-    rejected = [row for row in rows if row["status"] != "pending_confirmation"]
+    pending, rejected, excluded = split_arbitrage(rows)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "rules": {
@@ -196,13 +194,51 @@ def build_copy_review(
             "fast_close_seconds": FAST_CLOSE_SECONDS,
             "min_closed_trips": MIN_CLOSED_TRIPS,
             "reject_tags": sorted(REJECT_TAGS),
+            "exclude_arbitrage": True,
             "auto_follow": False,
         },
         "pending_count": len(pending),
         "rejected_count": len(rejected),
+        "excluded_count": len(excluded),
         "pending": pending,
         "rejected": rejected,
+        "excluded": excluded,
     }
+
+
+def split_arbitrage(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Move arbitrage wallets out of the confirmation and rejection lists."""
+    pending: list[dict[str, Any]] = []
+    rejected: list[dict[str, Any]] = []
+    excluded: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict) or not _is_arbitrage(row):
+            if row.get("status") == "pending_confirmation":
+                pending.append(row)
+            else:
+                rejected.append(row)
+            continue
+        fit = dict(row.get("copy_fit") or {})
+        reasons = [str(reason) for reason in fit.get("reasons") or []]
+        if not any("arbitrager" in reason for reason in reasons):
+            reasons.append("tagged arbitrager")
+        fit["decision"] = "excluded_arbitrage"
+        fit["reasons"] = reasons
+        fit["reasons_zh"] = ["套利地址，已排除", *explain_fit(fit)]
+        excluded.append({
+            **row,
+            "status": "excluded_arbitrage",
+            "confirmation": "not_offered",
+            "copy_fit": fit,
+        })
+    return pending, rejected, excluded
+
+
+def _is_arbitrage(row: dict[str, Any]) -> bool:
+    tags = {str(tag) for tag in row.get("tags") or []}
+    fit = row.get("copy_fit") if isinstance(row.get("copy_fit"), dict) else {}
+    blocked = {str(tag) for tag in fit.get("blocked_tags") or []}
+    return "arbitrager" in tags or "arbitrager" in blocked
 
 
 def write_copy_review(root: Path, review: dict[str, Any]) -> Path:
