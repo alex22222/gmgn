@@ -2749,6 +2749,7 @@ def _read_copy_leader_review(root: Path) -> dict[str, object]:
     rejected = payload.get('rejected') if isinstance(payload.get('rejected'), list) else []
     confirmed = payload.get('confirmed') if isinstance(payload.get('confirmed'), list) else []
     unavailable = payload.get('unavailable') if isinstance(payload.get('unavailable'), list) else []
+    excluded = payload.get('excluded') if isinstance(payload.get('excluded'), list) else []
     return {
         'generated_at': payload.get('generated_at'),
         'rules': payload.get('rules') if isinstance(payload.get('rules'), dict) else {},
@@ -2756,11 +2757,13 @@ def _read_copy_leader_review(root: Path) -> dict[str, object]:
         'rejected_count': len(rejected),
         'confirmed_count': len(confirmed),
         'unavailable_count': len(unavailable),
+        'excluded_count': len(excluded),
         'pending': pending,
         'rejected': rejected,
         'confirmed': confirmed,
         'unavailable': unavailable,
-        'note': '分数超过 60 且持仓适合 90 秒跟单的 leader 在这里等待人工确认。确认后只加入观察，不自动开启跟单。',
+        'excluded': excluded,
+        'note': '分数超过 60 且持仓适合 90 秒跟单的 leader 在这里等待人工确认。套利地址已排除。确认后只加入观察，不自动开启跟单。',
     }
 
 
@@ -4128,7 +4131,7 @@ INDEX_HTML = r'''<!doctype html>
         <div id="leaderPoolNotice" class="notice score-notice"></div>
         <div class="leader-list-head">
           <h3>可跟单复核</h3>
-          <span id="copyReviewSummary" class="small">分数超过 60，且持仓长到下一轮还能看到。确认后只观察，不自动跟单。</span>
+          <span id="copyReviewSummary" class="small">分数超过 60，已排除套利地址。确认后只观察，不自动跟单。</span>
         </div>
         <div class="portfolio-table-wrap">
           <table class="source-table">
@@ -4480,12 +4483,13 @@ INDEX_HTML = r'''<!doctype html>
       const pending = review.pending || [];
       const rejected = review.rejected || [];
       if (summary) {
-        summary.textContent = `待确认 ${review.pending_count || 0}，已确认观察 ${review.confirmed_count || 0}，未入选 ${review.rejected_count || 0}。确认后只加入观察，不自动开启跟单。`;
+        summary.textContent = `待确认 ${review.pending_count || 0}，已排除套利 ${review.excluded_count || 0}，未入选 ${review.rejected_count || 0}。确认后只加入观察，不自动开启跟单。`;
       }
       body.innerHTML = '';
       const confirmed = review.confirmed || [];
       const unavailable = review.unavailable || [];
-      const rows = pending.concat(confirmed).concat(rejected).concat(unavailable);
+      const excluded = review.excluded || [];
+      const rows = pending.concat(confirmed).concat(rejected).concat(excluded).concat(unavailable);
       if (!rows.length) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
@@ -4512,6 +4516,8 @@ INDEX_HTML = r'''<!doctype html>
           statusText = '已确认观察，未开启跟单';
         } else if (leader.status === 'already_following') {
           statusText = '当前已跟单，确认没有改动开关';
+        } else if (leader.status === 'excluded_arbitrage') {
+          statusText = leader.current_follow ? '已排除套利。当前跟单保持开启' : '已排除套利';
         } else if (leader.status === 'unavailable') {
           statusText = leader.error || '暂时读不到成交，未入库';
         } else if (leader.current_follow) {
