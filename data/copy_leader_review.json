@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-10T15:22:08.076170+00:00",
+  "generated_at": "2026-11-11T12:23:28.935563+00:00",
   "rules": {
     "min_score_exclusive": 60.0,
     "min_median_hold_seconds": 900,
@@ -26,7 +26,7 @@
       "hard_rejected": false,
       "score_source": "whitelist_wallets.json",
       "winrate": 71.38,
-      "realized_profit": 11440.64391121633,
+      "realized_profit": 11521.09437090421,
       "trades_7d": 338,
       "tags": [
         "axiom",
@@ -41,16 +41,16 @@
       "copy_fit": {
         "decision": "rejected",
         "reasons": [
-          "14/14 round trips close within 90s",
+          "16/16 round trips close within 90s",
           "median hold 3s < 900s"
         ],
-        "closed_round_trips": 14,
-        "fast_close_count": 14,
+        "closed_round_trips": 16,
+        "fast_close_count": 16,
         "fast_close_ratio": 1.0,
         "median_hold_seconds": 3,
         "blocked_tags": [],
         "reasons_zh": [
-          "14/14 笔在 90 秒内平仓",
+          "16/16 笔在 90 秒内平仓",
           "中位持仓 3 秒，短于 15 分钟"
         ]
       },
@@ -149,7 +149,7 @@
       "hard_rejected": false,
       "score_source": "watchlist_wallets.json",
       "winrate": 100.0,
-      "realized_profit": -123851.92454328584,
+      "realized_profit": -124497.65352532452,
       "trades_7d": 45,
       "tags": [
         "arbitrager",
@@ -234,7 +234,7 @@
       "hard_rejected": false,
       "score_source": "whitelist_wallets.json",
       "winrate": 64.83,
-      "realized_profit": 4847.071530484879,
+      "realized_profit": 4767.310508079391,
       "trades_7d": 162,
       "tags": [
         "wash_trader",
@@ -242,8 +242,8 @@
         "app_smart_money",
         "padre",
         "arbitrager",
-        "top_renamed",
-        "top_followed"
+        "top_followed",
+        "top_renamed"
       ],
       "filter_reasons": [
         "high frequency 162 trades/7d (-10)",
@@ -255,12 +255,12 @@
         "decision": "excluded_arbitrage",
         "reasons": [
           "tagged arbitrager, wash_trader",
-          "21/24 round trips close within 90s",
+          "17/22 round trips close within 90s",
           "median hold 22s < 900s"
         ],
-        "closed_round_trips": 24,
-        "fast_close_count": 21,
-        "fast_close_ratio": 0.875,
+        "closed_round_trips": 22,
+        "fast_close_count": 17,
+        "fast_close_ratio": 0.7727,
         "median_hold_seconds": 22,
         "blocked_tags": [
           "arbitrager",
@@ -269,7 +269,7 @@
         "reasons_zh": [
           "套利地址，已排除",
           "标签含 arbitrager, wash_trader",
-          "21/24 笔在 90 秒内平仓",
+          "17/22 笔在 90 秒内平仓",
           "中位持仓 22 秒，短于 15 分钟"
         ]
       },
@@ -377,7 +377,7 @@
       "hard_rejected": false,
       "score_source": "blacklist_wallets.json",
       "winrate": 50.0,
-      "realized_profit": -2745.871416861896,
+      "realized_profit": -2232.528902290166,
       "trades_7d": 66,
       "tags": [
         "arbitrager"
